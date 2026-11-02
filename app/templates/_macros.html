@@ -1,0 +1,24 @@
+{% macro card(extra='') %}
+<div class="rounded-lg border border-slate-200 bg-white p-4 {{ extra }}">{{ caller() }}</div>
+{% endmacro %}
+
+{% macro kpi(column, value) %}
+{% call card() %}
+  <p class="text-sm text-slate-500">{{ column.title }}</p>
+  <p class="mt-1 text-2xl font-semibold tabular-nums">
+    {{ value | fmt(column.kind) }}
+    {% if column.unit and value is not none %}<span class="text-sm font-normal text-slate-500">{{ column.unit }}</span>{% endif %}
+  </p>
+{% endcall %}
+{% endmacro %}
+
+{% macro row(label, values, groups, title='') %}
+<tr class="border-t border-slate-200">
+  <th scope="row" class="p-2 text-left font-medium whitespace-nowrap" {% if title %}title="{{ title }}"{% endif %}>{{ label }}</th>
+  {% for group in groups %}
+    {% for col in group.columns %}
+      <td class="p-2 text-right tabular-nums whitespace-nowrap {{ 'border-l border-slate-200' if loop.first }}">{{ values.get(col.key) | fmt(col.kind) }}</td>
+    {% endfor %}
+  {% endfor %}
+</tr>
+{% endmacro %}

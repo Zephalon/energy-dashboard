@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card, kpi, row %}
+{% block body %}
+<header class="border-b border-slate-200 bg-white">
+  <div class="mx-auto flex max-w-7xl items-center justify-between p-4">
+    <h1 class="text-lg font-semibold">Energie-Dashboard</h1>
+    {% if years %}
+    <nav class="flex gap-2 text-sm" aria-label="Jahr">
+      {% for y in years %}
+      <a href="{{ url_for('views.index', year=y.label) }}"
+         class="rounded px-3 py-1 {{ 'bg-slate-800 text-white' if y is sameas year else 'text-slate-600 hover:bg-slate-100' }}"
+         {% if y is sameas year %}aria-current="page"{% endif %}>{{ y.label }}</a>
+      {% endfor %}
+    </nav>
+    {% endif %}
+    <form method="post" action="{{ url_for('auth.logout') }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button class="text-sm text-slate-500 hover:text-slate-800">Abmelden</button>
+    </form>
+  </div>
+</header>
+
+<main class="mx-auto max-w-7xl space-y-8 p-4">
+  {% if year %}
+  <section class="space-y-4">
+    <h2 class="text-xl font-semibold">{{ year.label }}</h2>
+
+    <div class="grid grid-cols-2 gap-4 md:grid-cols-5">
+      {% for column in kpis %}{{ kpi(column, year.total.get(column.key)) }}{% endfor %}
+    </div>
+
+    <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100 text-slate-600">
+          <tr>
+            <th rowspan="2" class="p-2 text-left font-medium">Monat</th>
+            {% for group in groups %}
+            <th colspan="{{ group.columns | length }}" class="border-l border-slate-200 p-2 text-center font-semibold">{{ group.label }}</th>
+            {% endfor %}
+          </tr>
+          <tr>
+            {% for group in groups %}{% for col in group.columns %}
+            <th class="p-2 text-right font-medium whitespace-nowrap {{ 'border-l border-slate-200' if loop.first }}">
+              {{ col.label }}{% if col.unit %} <span class="font-normal text-slate-400">{{ col.unit }}</span>{% endif %}
+            </th>
+            {% endfor %}{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for month in year.months %}{{ row(month.label, month.values, groups, month.coverage) }}{% endfor %}
+        </tbody>
+        <tfoot class="bg-slate-50 font-semibold">
+          {{ row('Summe', year.total, groups) }}
+        </tfoot>
+      </table>
+    </div>
+  </section>
+
+  <section class="space-y-4">
+    <h2 class="text-xl font-semibold">Monatsverlauf</h2>
+    {% for c in chart.charts %}
+    {% call card() %}
+      <h3 class="text-sm text-slate-500">{{ c.title }}{% if c.unit %} <span class="text-slate-400">{{ c.unit }}</span>{% endif %}</h3>
+      <div class="relative mt-4 h-64"><canvas data-chart="{{ loop.index0 }}" aria-label="{{ c.title }}" role="img"></canvas></div>
+    {% endcall %}
+    {% endfor %}
+  </section>
+  <script type="application/json" id="chart-data">{{ chart | tojson }}</script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4" defer></script>
+  <script src="{{ url_for('static', filename='charts.js') }}" defer></script>
+  {% else %}
+  {% call card() %}<p class="text-sm text-slate-500">Noch keine Daten. Abruf über <code>/sync</code> oder <code>manage.py backfill</code>.</p>{% endcall %}
+  {% endif %}
+
+  <footer class="space-y-1 text-sm text-slate-500">
+    {% for info in sync_info %}
+    <p>
+      {{ info.label }}: Stand {{ info.success }}
+      {% if info.error %}<span class="text-red-600">· letzter Fehler: {{ info.error }}</span>{% endif %}
+    </p>
+    {% endfor %}
+    <p>Hausverbrauch = PV + Netzbezug − Einspeisung + Akku entladen − Akku laden. Arbeitszahl = erzeugte Wärme / Strom.</p>
+    {% if pv_factor != 1 %}<p>PV-Erzeugung inkl. Korrekturfaktor × {{ pv_factor | fmt('ratio') }}.</p>{% endif %}
+  </footer>
+</main>
+{% endblock %}
