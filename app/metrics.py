@@ -77,6 +77,27 @@ class Year:
     label: str
     total: dict[str, float | None]
     months: list[Period] = field(default_factory=list)
+    days: dict[str, int] = field(default_factory=dict)  # source -> days with data
+
+    @property
+    def span(self) -> str:
+        first, last = self.months[-1].label, self.months[0].label
+        return first if first == last else f"{first}–{last}"
+
+
+@dataclass(frozen=True)
+class Stat:
+    label: str
+    value: float | None
+    kind: str  # fmt kind
+    unit: str
+
+
+@dataclass(frozen=True)
+class StatCard:
+    title: str
+    stats: tuple[Stat, ...]
+    note: str = ""
 
 
 def _sum_prefix(raw: dict[str, float], prefix: str) -> float | None:
@@ -138,7 +159,10 @@ def build_years(
         sums = year_raw.setdefault(y, {})
         for key, value in raw.items():
             sums[key] = sums.get(key, 0.0) + value
-        years.setdefault(y, Year(label=y, total={})).months.append(
+        year = years.setdefault(y, Year(label=y, total={}))
+        for source, n in coverage.get(month, {}).items():
+            year.days[source] = year.days.get(source, 0) + n
+        year.months.append(
             Period(
                 label=MONTH_NAMES[int(m) - 1],
                 values=derive(raw, pv_factor),
@@ -169,14 +193,64 @@ def chart_data(year: Year) -> dict:
     }
 
 
+def _scale(value: float | None, factor: float) -> float | None:
+    return value * factor if value is not None else None
+
+
+def year_stats(year: Year, area_m2: float | None, price: float | None) -> tuple[list[StatCard], str]:
+    """Averages use days with data, so partial years are not diluted."""
+    t = year.total
+    days, hp_days = year.days.get("sax"), year.days.get("vaillant")
+    month_factor = 365.25 / 12
+
+    def per_day(key: str, n: int | None) -> float | None:
+        return _ratio(t.get(key), n)
+
+    cards = [StatCard("Ø Stromverbrauch pro Tag", (
+        Stat("mit Wärmepumpe", per_day("house", days), "dec", "kWh"),
+        Stat("ohne Wärmepumpe", per_day("house_without_hp", days), "dec", "kWh"),
+        Stat("Wärmepumpe", per_day("hp_el", hp_days), "dec", "kWh"),
+    ))]
+    if price:
+        monthly = month_factor * price
+        period = " · ".join(
+            f"{label} {fmt(_scale(t.get(key), price), 'eur')} €"
+            for label, key in (("Netzbezug", "grid_import"), ("Verbrauch", "house"))
+            if t.get(key) is not None
+        )
+        cards.append(StatCard("Ø Stromkosten pro Monat", (
+            Stat("Netzbezug", _scale(per_day("grid_import", days), monthly), "eur", "€"),
+            Stat("Hausverbrauch", _scale(per_day("house", days), monthly), "eur", "€"),
+            Stat("davon Wärmepumpe", _scale(per_day("hp_el", hp_days), monthly), "eur", "€"),
+        ), f"Im Zeitraum: {period}" if period else ""))
+    if area_m2:
+        cards.append(StatCard("Heizenergie pro m²", (
+            Stat("WP-Strom", _scale(t.get("hp_el"), 1 / area_m2), "dec", "kWh/m²"),
+            Stat("Wärme erzeugt", _scale(t.get("hp_heat"), 1 / area_m2), "dec", "kWh/m²"),
+        ), "Summe im Zeitraum, inkl. Warmwasser"))
+
+    basis = [f"{days or 0} Tage", year.span]
+    if hp_days is not None and hp_days != days:
+        basis.append(f"Wärmepumpe: {hp_days} Tage")
+    if area_m2:
+        basis.append(f"{fmt(area_m2)} m²")
+    if price:
+        basis.append(f"{_de(price, 2)} €/kWh ohne Grundgebühr")
+    return cards, " · ".join(basis)
+
+
+def _de(value: float, digits: int) -> str:
+    return f"{value:,.{digits}f}".translate(str.maketrans(",.", ".,"))
+
+
 def fmt(value: float | None, kind: str = "kwh") -> str:
     if value is None:
         return "–"
     if kind == "pct":
         return f"{value * 100:.0f}"
-    if kind == "ratio":
-        return f"{value:.1f}".replace(".", ",")
-    return f"{value:,.0f}".replace(",", ".")
+    if kind in ("ratio", "dec"):
+        return _de(value, 1)
+    return _de(value, 0)
 
 
 def format_local(iso: str | None, tz: tzinfo) -> str:

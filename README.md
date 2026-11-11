@@ -100,6 +100,11 @@ Nach Code-Änderungen startet Passenger die App neu, wenn `tmp/restart.txt` im A
 | WP-Anteil | WP-Strom / Hausverbrauch |
 | Autarkie | 1 − Netzbezug / Hausverbrauch |
 | Eigenverbrauch | (PV − Einspeisung) / PV |
+| Ø pro Tag | Jahressumme / Tage mit Daten (SAX, für WP-Strom Vaillant) |
+| Ø Stromkosten pro Monat | Ø pro Tag × 365,25 / 12 × `ELECTRICITY_PRICE` (ohne Grundgebühr) |
+| Heizenergie pro m² | WP-Strom bzw. erzeugte Wärme im Zeitraum / `HOUSE_AREA_M2` (inkl. Warmwasser) |
+
+Die Jahresstatistik bezieht sich auf die angezeigten Monate des gewählten Jahres. Ohne `ELECTRICITY_PRICE` bzw. `HOUSE_AREA_M2` entfällt die jeweilige Karte.
 
 PV ist der SAX-Wert × `PV_CORRECTION_FACTOR` (Default 1,2). Der Faktor greift nur in der Anzeige, in SQLite stehen die Rohwerte. Angezeigt werden Monate ab `DISPLAY_FROM` in `app/metrics.py`, das Jahr wählt man über den Umschalter im Header (`/?year=2026`).
 

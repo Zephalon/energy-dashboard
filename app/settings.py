@@ -20,6 +20,14 @@ def _bool(name: str, default: bool) -> bool:
     return default if value is None else value.lower() in {"1", "true", "yes", "on"}
 
 
+def _positive(name: str) -> float | None:
+    value = _env(name)
+    if value is None:
+        return None
+    number = float(value.replace(",", "."))
+    return number if number > 0 else None
+
+
 @dataclass(frozen=True)
 class Settings:
     secret_key: str | None
@@ -28,6 +36,8 @@ class Settings:
     data_dir: Path
     timezone: str
     cookie_secure: bool
+    house_area_m2: float | None
+    electricity_price: float | None
 
     sax_email: str | None
     sax_password: str | None
@@ -78,6 +88,8 @@ def load_settings() -> Settings:
         data_dir=Path(_env("DATA_DIR", str(ROOT / "data"))),
         timezone=_env("TIMEZONE", "Europe/Berlin"),
         cookie_secure=_bool("COOKIE_SECURE", True),
+        house_area_m2=_positive("HOUSE_AREA_M2"),
+        electricity_price=_positive("ELECTRICITY_PRICE"),
         sax_email=_env("SAX_EMAIL"),
         sax_password=_env("SAX_PASSWORD"),
         sax_serial=_env("SAX_SERIAL"),

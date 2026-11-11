@@ -28,6 +28,9 @@ def index():
     ]
     years = metrics.build_years(*store.monthly(), sync.LABELS, settings.pv_correction_factor)
     selected = next((y for y in years if y.label == request.args.get("year")), years[0] if years else None)
+    stats, stats_basis = (
+        metrics.year_stats(selected, settings.house_area_m2, settings.electricity_price) if selected else ([], "")
+    )
     return render_template(
         "months.html",
         years=years,
@@ -36,6 +39,8 @@ def index():
         groups=metrics.GROUPS,
         kpis=[metrics.COLUMNS[k] for k in metrics.KPI_KEYS],
         chart=metrics.chart_data(selected) if selected else None,
+        stats=stats,
+        stats_basis=stats_basis,
         sync_info=sync_info,
     )
 

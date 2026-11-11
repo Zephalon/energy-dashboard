@@ -2,13 +2,30 @@
 <div class="rounded-lg border border-slate-200 bg-white p-4 {{ extra }}">{{ caller() }}</div>
 {% endmacro %}
 
+{% macro amount(value, kind, unit) %}
+{{ value | fmt(kind) }}
+{% if unit and value is not none %}<span class="text-sm font-normal text-slate-500">{{ unit }}</span>{% endif %}
+{% endmacro %}
+
 {% macro kpi(column, value) %}
 {% call card() %}
   <p class="text-sm text-slate-500">{{ column.title }}</p>
-  <p class="mt-1 text-2xl font-semibold tabular-nums">
-    {{ value | fmt(column.kind) }}
-    {% if column.unit and value is not none %}<span class="text-sm font-normal text-slate-500">{{ column.unit }}</span>{% endif %}
-  </p>
+  <p class="mt-1 text-2xl font-semibold tabular-nums">{{ amount(value, column.kind, column.unit) }}</p>
+{% endcall %}
+{% endmacro %}
+
+{% macro stat_card(c) %}
+{% call card() %}
+  <p class="text-sm text-slate-500">{{ c.title }}</p>
+  <dl class="mt-2 space-y-1">
+    {% for s in c.stats %}
+    <div class="flex items-baseline justify-between gap-4">
+      <dt class="text-sm text-slate-600">{{ s.label }}</dt>
+      <dd class="text-xl font-semibold tabular-nums whitespace-nowrap">{{ amount(s.value, s.kind, s.unit) }}</dd>
+    </div>
+    {% endfor %}
+  </dl>
+  {% if c.note %}<p class="mt-2 text-sm text-slate-500">{{ c.note }}</p>{% endif %}
 {% endcall %}
 {% endmacro %}
 
