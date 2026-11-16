@@ -21,7 +21,8 @@
     {% for s in c.stats %}
     <div class="flex items-baseline justify-between gap-4">
       <dt class="text-sm text-slate-600">{{ s.label }}</dt>
-      <dd class="text-xl font-semibold tabular-nums whitespace-nowrap">{{ amount(s.value, s.kind, s.unit) }}</dd>
+      <dd class="text-xl font-semibold tabular-nums whitespace-nowrap">{{ amount(s.value, s.kind, s.unit) }}
+        {%- if s.share is not none %} <span class="text-sm font-normal text-slate-500">({{ s.share | fmt('pct') }} %)</span>{% endif %}</dd>
     </div>
     {% endfor %}
   </dl>

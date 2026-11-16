@@ -8,6 +8,7 @@ MONTH_NAMES = [
     "Juli", "August", "September", "Oktober", "November", "Dezember",
 ]
 SAX_KEYS = ("pv", "grid_import", "grid_export", "bat_charge", "bat_discharge")
+HEAT_MODES = ("heating", "dhw")  # modes that produce heat; cooling is excluded from heat and COP
 DISPLAY_FROM = "2026-05"  # YYYY-MM, earlier months are hidden
 
 
@@ -46,6 +47,7 @@ GROUPS = (
     Group("Wärmepumpe", (
         Column("el_heating", "Strom Heizen"),
         Column("el_dhw", "Strom Warmwasser"),
+        Column("el_cooling", "Strom Kühlung"),
         Column("hp_el", "Strom gesamt", kpi_label="WP-Strom"),
         Column("hp_heat", "Wärme erzeugt"),
         Column("cop", "Arbeitszahl", "ratio", kpi_label="WP-Arbeitszahl"),
@@ -57,6 +59,7 @@ GROUPS = (
     )),
 )
 COLUMNS = {c.key: c for g in GROUPS for c in g.columns}
+HP_MODES = (("Heizen", "el_heating"), ("Warmwasser", "el_dhw"), ("Kühlung", "el_cooling"))
 KPI_KEYS = ("pv", "house", "hp_el", "cop", "autarky")
 CHARTS = (  # title, keys; all keys of a chart must share one kind
     ("Energie", ("pv", "grid_import", "house", "hp_el")),
@@ -91,6 +94,7 @@ class Stat:
     value: float | None
     kind: str  # fmt kind
     unit: str
+    share: float | None = None  # optional fraction shown next to the value
 
 
 @dataclass(frozen=True)
@@ -100,13 +104,31 @@ class StatCard:
     note: str = ""
 
 
-def _sum_prefix(raw: dict[str, float], prefix: str) -> float | None:
-    values = [v for k, v in raw.items() if k.startswith(prefix)]
+def _sum(values) -> float | None:
+    values = [v for v in values if v is not None]
     return sum(values) if values else None
+
+
+def _sum_prefix(raw: dict[str, float], prefix: str) -> float | None:
+    return _sum(v for k, v in raw.items() if k.startswith(prefix))
+
+
+def _sum_modes(raw: dict[str, float], energy: str, modes=HEAT_MODES) -> float | None:
+    return _sum(raw.get(f"{energy}_{m}") for m in modes)
 
 
 def _ratio(a: float | None, b: float | None) -> float | None:
     return a / b if a is not None and b else None
+
+
+def _with_heat_fallback(raw: dict[str, float]) -> dict[str, float]:
+    """Fill missing heat_<mode> with el_<mode> + env_<mode>, before summing, so totals match months."""
+    filled = dict(raw)
+    for m in HEAT_MODES:
+        el, env = raw.get(f"el_{m}"), raw.get(f"env_{m}")
+        if f"heat_{m}" not in raw and el is not None and env is not None:
+            filled[f"heat_{m}"] = el + env
+    return filled
 
 
 def derive(raw: dict[str, float], pv_factor: float = 1.0) -> dict[str, float | None]:
@@ -119,19 +141,18 @@ def derive(raw: dict[str, float], pv_factor: float = 1.0) -> dict[str, float | N
     if all(values.get(k) is not None for k in SAX_KEYS):
         house = pv + grid_import - grid_export + bat_discharge - bat_charge
 
-    hp_el = _sum_prefix(raw, "el_")
-    hp_heat = _sum_prefix(raw, "heat_")
-    hp_env = _sum_prefix(raw, "env_")
-    if hp_heat is None and hp_el is not None and hp_env is not None:
-        hp_heat = hp_el + hp_env
+    hp_el = _sum_prefix(raw, "el_")  # all modes, incl. cooling
+    hp_el_heat = _sum_modes(raw, "el")  # heating + hot water only
+    hp_heat = _sum_modes(raw, "heat")
 
     import_share = _ratio(grid_import, house)
     values.update(
         house=house,
         house_without_hp=house - hp_el if house is not None and hp_el is not None else None,
         hp_el=hp_el,
+        hp_el_heat=hp_el_heat,
         hp_heat=hp_heat,
-        cop=_ratio(hp_heat, hp_el),
+        cop=_ratio(hp_heat, hp_el_heat),
         hp_share=_ratio(hp_el, house),
         autarky=1 - import_share if import_share is not None else None,
         self_use=_ratio(pv - grid_export, pv) if pv is not None and grid_export is not None else None,
@@ -155,7 +176,7 @@ def build_years(
         if month < DISPLAY_FROM:
             continue
         y, m = month.split("-")
-        raw = totals[month]
+        raw = _with_heat_fallback(totals[month])
         sums = year_raw.setdefault(y, {})
         for key, value in raw.items():
             sums[key] = sums.get(key, 0.0) + value
@@ -211,6 +232,12 @@ def year_stats(year: Year, area_m2: float | None, price: float | None) -> tuple[
         Stat("ohne Wärmepumpe", per_day("house_without_hp", days), "dec", "kWh"),
         Stat("Wärmepumpe", per_day("hp_el", hp_days), "dec", "kWh"),
     ))]
+    hp_el = t.get("hp_el")
+    if hp_el:
+        cards.append(StatCard("WP-Strom nach Nutzung", tuple(
+            Stat(label, t.get(key), "kwh", "kWh", _ratio(t.get(key), hp_el))
+            for label, key in HP_MODES
+        ), "Summe im Zeitraum, Anteil am WP-Strom"))
     if price:
         monthly = month_factor * price
         period = " · ".join(
@@ -225,9 +252,9 @@ def year_stats(year: Year, area_m2: float | None, price: float | None) -> tuple[
         ), f"Im Zeitraum: {period}" if period else ""))
     if area_m2:
         cards.append(StatCard("Heizenergie pro m²", (
-            Stat("WP-Strom", _scale(t.get("hp_el"), 1 / area_m2), "dec", "kWh/m²"),
+            Stat("WP-Strom", _scale(t.get("hp_el_heat"), 1 / area_m2), "dec", "kWh/m²"),
             Stat("Wärme erzeugt", _scale(t.get("hp_heat"), 1 / area_m2), "dec", "kWh/m²"),
-        ), "Summe im Zeitraum, inkl. Warmwasser"))
+        ), "Summe im Zeitraum, Heizen + Warmwasser, ohne Kühlung"))
 
     basis = [f"{days or 0} Tage", year.span]
     if hp_days is not None and hp_days != days:

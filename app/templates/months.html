@@ -30,7 +30,7 @@
     </div>
 
     <div class="space-y-2">
-      <div class="grid gap-4 md:grid-cols-3">
+      <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {% for c in stats %}{{ stat_card(c) }}{% endfor %}
       </div>
       <p class="text-sm text-slate-500">Basis: {{ stats_basis }}</p>
@@ -86,7 +86,8 @@
       {% if info.error %}<span class="text-red-600">· letzter Fehler: {{ info.error }}</span>{% endif %}
     </p>
     {% endfor %}
-    <p>Hausverbrauch = PV + Netzbezug − Einspeisung + Akku entladen − Akku laden. Arbeitszahl = erzeugte Wärme / Strom.</p>
+    <p>Hausverbrauch = PV + Netzbezug − Einspeisung + Akku entladen − Akku laden.</p>
+    <p>WP-Strom gesamt = Heizen + Warmwasser + Kühlung. Wärme erzeugt und Arbeitszahl (= Wärme / Strom) beziehen sich nur auf Heizen + Warmwasser, ohne Kühlung.</p>
     {% if pv_factor != 1 %}<p>PV-Erzeugung inkl. Korrekturfaktor × {{ pv_factor | fmt('ratio') }}.</p>{% endif %}
   </footer>
 </main>

@@ -95,14 +95,17 @@ Nach Code-Änderungen startet Passenger die App neu, wenn `tmp/restart.txt` im A
 | Kennzahl | Formel |
 | --- | --- |
 | Hausverbrauch | PV + Netzbezug − Einspeisung + Akku entladen − Akku laden |
+| WP-Strom | Heizen + Warmwasser + Kühlung |
 | ohne WP | Hausverbrauch − WP-Strom |
-| Arbeitszahl | erzeugte Wärme / WP-Strom (Fallback: (Strom + Umweltenergie) / Strom) |
+| Wärme erzeugt | Heizen + Warmwasser, ohne Kühlung (Fallback: Strom + Umweltenergie derselben Modi) |
+| Arbeitszahl | Wärme erzeugt / WP-Strom für Heizen + Warmwasser |
+| WP-Strom nach Nutzung | Strom je Modus im Zeitraum und Anteil am WP-Strom |
 | WP-Anteil | WP-Strom / Hausverbrauch |
 | Autarkie | 1 − Netzbezug / Hausverbrauch |
 | Eigenverbrauch | (PV − Einspeisung) / PV |
 | Ø pro Tag | Jahressumme / Tage mit Daten (SAX, für WP-Strom Vaillant) |
 | Ø Stromkosten pro Monat | Ø pro Tag × 365,25 / 12 × `ELECTRICITY_PRICE` (ohne Grundgebühr) |
-| Heizenergie pro m² | WP-Strom bzw. erzeugte Wärme im Zeitraum / `HOUSE_AREA_M2` (inkl. Warmwasser) |
+| Heizenergie pro m² | WP-Strom bzw. erzeugte Wärme für Heizen + Warmwasser im Zeitraum / `HOUSE_AREA_M2` |
 
 Die Jahresstatistik bezieht sich auf die angezeigten Monate des gewählten Jahres. Ohne `ELECTRICITY_PRICE` bzw. `HOUSE_AREA_M2` entfällt die jeweilige Karte.
 
