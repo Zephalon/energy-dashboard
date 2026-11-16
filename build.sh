@@ -9,10 +9,16 @@ BUILD_DIR="build"
 TARGET_PYTHON="${TARGET_PYTHON:-3.11}"
 TARGET_ABI="cp${TARGET_PYTHON/./}"
 
-if [[ -x .venv/bin/python ]]; then
-  PYTHON="${PYTHON:-.venv/bin/python}"
-else
-  PYTHON="${PYTHON:-python3}"
+# Dedicated tool venv with a current pip: older pip (e.g. 21.x of macOS' Python 3.9)
+# checks requires-python against the local interpreter instead of --python-version.
+BUILD_VENV=".cache/build-venv"
+if [[ -z "${PYTHON:-}" ]]; then
+  if [[ ! -x "$BUILD_VENV/bin/python" ]]; then
+    echo "==> Creating build venv in $BUILD_VENV/"
+    python3 -m venv "$BUILD_VENV"
+  fi
+  "$BUILD_VENV/bin/python" -m pip install --quiet --disable-pip-version-check --upgrade pip
+  PYTHON="$BUILD_VENV/bin/python"
 fi
 
 echo "==> Cleaning $BUILD_DIR/"

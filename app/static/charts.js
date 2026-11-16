@@ -12,6 +12,9 @@
     autarky: "#10b981",
     self_use: "#f59e0b",
     cop: "#0ea5e9",
+    heat_heating: "#f97316",
+    heat_dhw: "#e11d48",
+    heat_cooling: "#3b82f6",
   };
   const FORMATS = {
     kwh: { scale: 1, digits: 0 },
@@ -29,8 +32,10 @@
     const format = (v) =>
       v.toLocaleString("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
+    const sum = (items) => items.reduce((total, item) => total + (item.parsed.y ?? 0), 0);
+
     new Chart(canvas, {
-      type: "line",
+      type: chart.stacked ? "bar" : "line",
       data: {
         labels,
         datasets: chart.series.map((s) => ({
@@ -53,12 +58,14 @@
             callbacks: {
               label: (ctx) =>
                 ctx.parsed.y === null ? null : `${ctx.dataset.label}: ${format(ctx.parsed.y)} ${chart.unit}`.trim(),
+              footer: (items) => (chart.stacked ? `Summe: ${format(sum(items))} ${chart.unit}`.trim() : ""),
             },
           },
         },
         scales: {
-          x: { grid: { display: false } },
+          x: { grid: { display: false }, stacked: chart.stacked },
           y: {
+            stacked: chart.stacked,
             beginAtZero: true,
             suggestedMax: chart.kind === "pct" ? 100 : undefined,
             ticks: { callback: (v) => format(v) },

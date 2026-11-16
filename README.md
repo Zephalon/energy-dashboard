@@ -81,7 +81,7 @@ python manage.py hash-password
 Auf vielen Shared-Hostern gibt es kein venv. `passenger_wsgi.py` hängt stattdessen einen hochgeladenen `packages/`-Ordner in den Modul-Suchpfad.
 
 1. **Python-Version prüfen.** Per SSH `python3 --version`. Der Build zielt standardmäßig auf 3.11, für eine andere Version `TARGET_PYTHON=3.12 ./build.sh`.
-2. **Bauen.** Lokal `./build.sh` ausführen. Ergebnis ist `build/` mit `app/`, `packages/` (Linux-x86_64-Wheels), leerem `public/` und `tmp/restart.txt`. `.env` und `data/` sind bewusst nicht enthalten.
+2. **Bauen.** Lokal `./build.sh` ausführen. Beim ersten Lauf legt das Skript unter `.cache/build-venv/` eine eigene Umgebung mit aktuellem pip an. Ergebnis ist `build/` mit `app/`, `packages/` (Linux-x86_64-Wheels), leerem `public/` und `tmp/restart.txt`. `.env` und `data/` sind bewusst nicht enthalten.
 3. **Hochladen.** Den Inhalt von `build/` in einen Ordner außerhalb des Webroots legen, z. B. `~/energie/`. Beim ersten Mal `.env` (aus `.env.example`) dort anlegen und `chmod 600 .env` setzen. `data/` entsteht von selbst.
 4. **Passenger-App** anlegen: Anwendungsstamm `~/energie`, Startdatei `passenger_wsgi.py`, Dokumentenstamm `~/energie/public`.
 5. **HTTPS** aktivieren und auf HTTPS umleiten. Das Session-Cookie ist `Secure`, ohne HTTPS klappt der Login nicht.

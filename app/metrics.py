@@ -58,13 +58,28 @@ GROUPS = (
         Column("self_use", "Eigenverbrauch", "pct"),
     )),
 )
-COLUMNS = {c.key: c for g in GROUPS for c in g.columns}
+CHART_COLUMNS = (  # chart-only series, not shown in the table
+    Column("heat_heating", "Heizen"),
+    Column("heat_dhw", "Warmwasser"),
+    Column("heat_cooling", "Kühlung"),
+)
+COLUMNS = {c.key: c for c in (*(c for g in GROUPS for c in g.columns), *CHART_COLUMNS)}
 HP_MODES = (("Heizen", "el_heating"), ("Warmwasser", "el_dhw"), ("Kühlung", "el_cooling"))
 KPI_KEYS = ("pv", "house", "hp_el", "cop", "autarky")
-CHARTS = (  # title, keys; all keys of a chart must share one kind
-    ("Energie", ("pv", "grid_import", "house", "hp_el")),
-    ("Quoten", ("hp_share", "autarky", "self_use")),
-    ("WP-Arbeitszahl", ("cop",)),
+
+
+@dataclass(frozen=True)
+class Chart:
+    title: str
+    keys: tuple[str, ...]  # all keys must share one kind
+    stacked: bool = False  # stacked bars instead of lines
+
+
+CHARTS = (
+    Chart("Energie", ("pv", "grid_import", "house", "hp_el")),
+    Chart("WP erzeugte Energie nach Nutzung", ("heat_heating", "heat_dhw", "heat_cooling"), stacked=True),
+    Chart("Quoten", ("hp_share", "autarky", "self_use")),
+    Chart("WP-Arbeitszahl", ("cop",)),
 )
 
 
@@ -201,15 +216,16 @@ def chart_data(year: Year) -> dict:
         "labels": [m.label for m in months],
         "charts": [
             {
-                "title": title,
-                "kind": COLUMNS[keys[0]].kind,
-                "unit": COLUMNS[keys[0]].unit,
+                "title": c.title,
+                "kind": COLUMNS[c.keys[0]].kind,
+                "unit": COLUMNS[c.keys[0]].unit,
+                "stacked": c.stacked,
                 "series": [
                     {"key": k, "label": COLUMNS[k].title, "values": [m.values.get(k) for m in months]}
-                    for k in keys
+                    for k in c.keys
                 ],
             }
-            for title, keys in CHARTS
+            for c in CHARTS
         ],
     }
 
