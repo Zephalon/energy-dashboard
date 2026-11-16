@@ -1,0 +1,291 @@
+/*
+ * Theme tokens and the default "cyberpunk" theme (html[data-theme="cyberpunk"]; theme.js removes it for the classic look).
+ * Unlayered rules here override Tailwind's layered utilities. charts.js reads the --series-* and --chart-* tokens.
+ */
+
+:root {
+  --series-pv: #f59e0b;
+  --series-grid_import: #ef4444;
+  --series-house: #475569;
+  --series-hp_el: #0ea5e9;
+  --series-hp_share: #0ea5e9;
+  --series-autarky: #10b981;
+  --series-self_use: #f59e0b;
+  --series-cop: #0ea5e9;
+  --series-heat_heating: #f97316;
+  --series-heat_dhw: #e11d48;
+  --series-heat_cooling: #3b82f6;
+
+  --chart-text: #64748b;
+  --chart-grid: #e2e8f0;
+  --chart-glow: 0;
+  --chart-fill-opacity: 1;
+  --chart-tooltip-bg: rgb(0 0 0 / 0.8);
+  --chart-tooltip-border: transparent;
+}
+
+/* Fonts are only fetched once the cyberpunk theme uses them. */
+@font-face { font-family: "Orbitron"; font-weight: 700; font-display: swap; src: url("https://cdn.jsdelivr.net/npm/@fontsource/orbitron@5.3.0/files/orbitron-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Orbitron"; font-weight: 900; font-display: swap; src: url("https://cdn.jsdelivr.net/npm/@fontsource/orbitron@5.3.0/files/orbitron-latin-900-normal.woff2") format("woff2"); }
+@font-face { font-family: "Rajdhani"; font-weight: 500; font-display: swap; src: url("https://cdn.jsdelivr.net/npm/@fontsource/rajdhani@5.3.0/files/rajdhani-latin-500-normal.woff2") format("woff2"); }
+@font-face { font-family: "Rajdhani"; font-weight: 700; font-display: swap; src: url("https://cdn.jsdelivr.net/npm/@fontsource/rajdhani@5.3.0/files/rajdhani-latin-700-normal.woff2") format("woff2"); }
+@font-face { font-family: "Share Tech Mono"; font-weight: 400; font-display: swap; src: url("https://cdn.jsdelivr.net/npm/@fontsource/share-tech-mono@5.3.0/files/share-tech-mono-latin-400-normal.woff2") format("woff2"); }
+
+/* ---------- Cyberpunk: tokens ---------- */
+
+:root[data-theme="cyberpunk"] {
+  color-scheme: dark;
+  font-size: 106.25%;
+
+  --cp-bg: #05060b;
+  --cp-panel: #0b0e18;
+  --cp-yellow: #fcee0a;
+  --cp-cyan: #00f0ff;
+  --cp-red: #ff003c;
+  --cp-pink: #ff2a6d;
+  --cp-green: #00ff9f;
+  --cp-text: #d4f5ff;
+  --cp-dim: #4d6a7a;
+  --cp-cut: 14px;
+  --cp-display: "Orbitron", var(--cp-body);
+  --cp-body: "Rajdhani", ui-sans-serif, system-ui, sans-serif;
+  --cp-mono: "Share Tech Mono", ui-monospace, monospace;
+
+  /* Remap the Tailwind palette the templates use */
+  --font-sans: var(--cp-body);
+  --color-white: var(--cp-panel);
+  --color-slate-50: var(--cp-bg);
+  --color-slate-100: #111628;
+  --color-slate-200: #1a2a3c;
+  --color-slate-300: #2a3f56;
+  --color-slate-400: var(--cp-dim);
+  --color-slate-500: #3fc6d4;
+  --color-slate-600: #9ab8c4;
+  --color-slate-700: #fff566;
+  --color-slate-800: var(--cp-yellow);
+  --color-red-600: var(--cp-red);
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+
+  --series-pv: var(--cp-yellow);
+  --series-grid_import: var(--cp-red);
+  --series-house: var(--cp-text);
+  --series-hp_el: var(--cp-cyan);
+  --series-hp_share: var(--cp-cyan);
+  --series-autarky: var(--cp-green);
+  --series-self_use: var(--cp-yellow);
+  --series-cop: var(--cp-cyan);
+  --series-heat_heating: var(--cp-pink);
+  --series-heat_dhw: var(--cp-yellow);
+  --series-heat_cooling: var(--cp-cyan);
+
+  --chart-text: #6f95a6;
+  --chart-grid: rgb(0 240 255 / 0.08);
+  --chart-glow: 12;
+  --chart-fill-opacity: 0.35;
+  --chart-tooltip-bg: rgb(5 6 11 / 0.95);
+  --chart-tooltip-border: var(--cp-yellow);
+}
+
+/* ---------- Cyberpunk: page ---------- */
+
+[data-theme="cyberpunk"] body {
+  color: var(--cp-text);
+  font-weight: 500;
+  background:
+    radial-gradient(ellipse 60% 50% at 0 0, rgb(0 240 255 / 0.12), transparent),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgb(255 0 60 / 0.14), transparent),
+    linear-gradient(rgb(0 240 255 / 0.035) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(90deg, rgb(0 240 255 / 0.035) 1px, transparent 1px) 0 0 / 32px 32px,
+    var(--cp-bg);
+  background-attachment: fixed;
+}
+
+/* Scanlines + slow scan beam */
+[data-theme="cyberpunk"] body::before,
+[data-theme="cyberpunk"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+[data-theme="cyberpunk"] body::before {
+  background: repeating-linear-gradient(transparent 0 2px, rgb(0 0 0 / 0.22) 2px 3px);
+}
+[data-theme="cyberpunk"] body::after {
+  inset: -20vh 0 auto;
+  height: 20vh;
+  background: linear-gradient(transparent, rgb(0 240 255 / 0.05), transparent);
+  animation: cp-scan 9s linear infinite;
+}
+
+[data-theme="cyberpunk"] ::selection { background: var(--cp-yellow); color: var(--cp-bg); }
+
+[data-theme="cyberpunk"] header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgb(5 6 11 / 0.82);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--cp-yellow);
+  box-shadow: 0 0 24px rgb(252 238 10 / 0.18);
+}
+
+[data-theme="cyberpunk"] h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--cp-display);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cp-yellow);
+}
+[data-theme="cyberpunk"] h2::before { content: "//"; color: var(--cp-red); }
+[data-theme="cyberpunk"] h2::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--cp-yellow), transparent);
+}
+
+[data-theme="cyberpunk"] .tabular-nums { font-family: var(--cp-mono); }
+
+[data-theme="cyberpunk"] footer {
+  font-family: var(--cp-mono);
+  font-size: 0.75rem;
+  color: var(--cp-dim);
+}
+[data-theme="cyberpunk"] footer p::before { content: "> "; color: var(--cp-cyan); }
+
+/* ---------- Cyberpunk: components ---------- */
+
+[data-theme="cyberpunk"] .brand {
+  position: relative;
+  font-family: var(--cp-display);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cp-yellow);
+  text-shadow: 0 0 10px rgb(252 238 10 / 0.55);
+}
+[data-theme="cyberpunk"] .brand::before,
+[data-theme="cyberpunk"] .brand::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  text-shadow: none;
+  clip-path: inset(100% 0 0 0);
+}
+[data-theme="cyberpunk"] .brand::before { color: var(--cp-cyan); animation: cp-glitch 4s steps(1) infinite; }
+[data-theme="cyberpunk"] .brand::after { color: var(--cp-red); animation: cp-glitch 4s steps(1) 0.15s infinite reverse; }
+
+[data-theme="cyberpunk"] .panel {
+  position: relative;
+  border-color: rgb(0 240 255 / 0.22);
+  background:
+    linear-gradient(135deg, rgb(0 240 255 / 0.07), transparent 45%),
+    rgb(11 14 24 / 0.88);
+  box-shadow: inset 3px 0 0 var(--cp-yellow);
+  clip-path: polygon(
+    0 0, calc(100% - var(--cp-cut)) 0, 100% var(--cp-cut),
+    100% 100%, var(--cp-cut) 100%, 0 calc(100% - var(--cp-cut))
+  );
+}
+/* Neon edge along the cut corner */
+[data-theme="cyberpunk"] .panel::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--cp-cut);
+  height: var(--cp-cut);
+  background: linear-gradient(to top right, transparent calc(50% - 2px), var(--cp-cyan) 0);
+  pointer-events: none;
+}
+
+[data-theme="cyberpunk"] .panel-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cp-cyan);
+}
+[data-theme="cyberpunk"] .panel-title::before { content: "▸ "; color: var(--cp-yellow); }
+
+[data-theme="cyberpunk"] .kpi-value {
+  font-family: var(--cp-display);
+  color: var(--cp-yellow);
+  text-shadow: 0 0 12px rgb(252 238 10 / 0.5);
+}
+
+[data-theme="cyberpunk"] nav a {
+  font-family: var(--cp-mono);
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+}
+
+[data-theme="cyberpunk"] thead th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cp-cyan);
+}
+[data-theme="cyberpunk"] thead tr:first-child th[colspan] { color: var(--cp-yellow); }
+[data-theme="cyberpunk"] tbody tr:hover > * { background: rgb(252 238 10 / 0.07); color: var(--cp-yellow); }
+[data-theme="cyberpunk"] tfoot { color: var(--cp-yellow); border-top: 1px solid var(--cp-yellow); }
+
+[data-theme="cyberpunk"] input:focus { box-shadow: 0 0 0 1px var(--cp-cyan), 0 0 12px rgb(0 240 255 / 0.4); }
+
+/* Theme toggle: plain link in the default theme, neon chip when active */
+.theme-toggle-led { display: none; }
+[data-theme="cyberpunk"] .theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.15rem 0.6rem;
+  font-family: var(--cp-mono);
+  text-transform: uppercase;
+  color: var(--cp-red);
+  border: 1px solid var(--cp-red);
+  box-shadow: 0 0 10px rgb(255 0 60 / 0.35), inset 0 0 8px rgb(255 0 60 / 0.25);
+}
+[data-theme="cyberpunk"] .theme-toggle-led {
+  display: block;
+  width: 6px;
+  height: 6px;
+  background: var(--cp-red);
+  box-shadow: 0 0 6px var(--cp-red);
+  animation: cp-blink 1.2s steps(1) infinite;
+}
+
+/* CRT power-on when switching into the theme */
+[data-theme="cyberpunk"].theme-boot body { animation: cp-boot 0.7s ease-out; }
+
+/* ---------- Cyberpunk: keyframes ---------- */
+
+@keyframes cp-scan { to { transform: translateY(140vh); } }
+@keyframes cp-blink { 50% { opacity: 0.2; } }
+
+@keyframes cp-glitch {
+  0%   { clip-path: inset(10% 0 70% 0); transform: translate(-3px, 0); }
+  3%   { clip-path: inset(60% 0 15% 0); transform: translate(3px, 0); }
+  6%   { clip-path: inset(100% 0 0 0); transform: none; }
+  48%  { clip-path: inset(40% 0 45% 0); transform: translate(2px, 0); }
+  50%  { clip-path: inset(100% 0 0 0); transform: none; }
+}
+
+@keyframes cp-boot {
+  0%   { clip-path: inset(49.5% 0 49.5% 0); filter: brightness(4) saturate(0); }
+  35%  { clip-path: inset(0); filter: brightness(1.8) hue-rotate(60deg); transform: translateX(-6px); }
+  55%  { filter: brightness(1.2) hue-rotate(-30deg); transform: translateX(4px); }
+  100% { clip-path: inset(0); filter: none; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="cyberpunk"] *,
+  [data-theme="cyberpunk"] *::before,
+  [data-theme="cyberpunk"] *::after { animation: none !important; }
+}

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% from "_macros.html" import card, kpi, row, stat_card %}
+{% from "_macros.html" import brand, card, kpi, row, stat_card, theme_toggle %}
 {% block body %}
 <header class="border-b border-slate-200 bg-white">
   <div class="mx-auto flex max-w-7xl items-center justify-between p-4">
-    <h1 class="text-lg font-semibold">Energie-Dashboard</h1>
+    {{ brand() }}
     {% if years %}
     <nav class="flex gap-2 text-sm" aria-label="Jahr">
       {% for y in years %}
@@ -13,10 +13,13 @@
       {% endfor %}
     </nav>
     {% endif %}
-    <form method="post" action="{{ url_for('auth.logout') }}">
-      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-      <button class="text-sm text-slate-500 hover:text-slate-800">Abmelden</button>
-    </form>
+    <div class="flex items-center gap-4">
+      {{ theme_toggle() }}
+      <form method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+        <button class="text-sm text-slate-500 hover:text-slate-800">Abmelden</button>
+      </form>
+    </div>
   </div>
 </header>
 
@@ -36,7 +39,7 @@
       <p class="text-sm text-slate-500">Basis: {{ stats_basis }}</p>
     </div>
 
-    <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+    <div class="panel overflow-x-auto rounded-lg border border-slate-200 bg-white">
       <table class="min-w-full text-sm">
         <thead class="bg-slate-100 text-slate-600">
           <tr>
@@ -67,7 +70,7 @@
     <h2 class="text-xl font-semibold">Monatsverlauf</h2>
     {% for c in chart.charts %}
     {% call card() %}
-      <h3 class="text-sm text-slate-500">{{ c.title }}{% if c.unit %} <span class="text-slate-400">{{ c.unit }}</span>{% endif %}</h3>
+      <h3 class="panel-title text-sm text-slate-500">{{ c.title }}{% if c.unit %} <span class="text-slate-400">{{ c.unit }}</span>{% endif %}</h3>
       <div class="relative mt-4 h-64"><canvas data-chart="{{ loop.index0 }}" aria-label="{{ c.title }}" role="img"></canvas></div>
     {% endcall %}
     {% endfor %}
