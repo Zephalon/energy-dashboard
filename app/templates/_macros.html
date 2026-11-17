@@ -8,6 +8,45 @@
 </button>
 {% endmacro %}
 
+{# Burger button for small screens; must directly precede its menu (peer-aria-expanded). menu.js toggles aria-expanded. #}
+{% macro menu_toggle(target, label='Menü') %}
+<button type="button" data-menu-toggle aria-controls="{{ target }}" aria-expanded="false" aria-label="{{ label }}"
+        class="menu-toggle group peer -my-2 ml-auto rounded p-2 text-slate-500 hover:text-slate-800 md:hidden">
+  <svg class="size-6 group-aria-expanded:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  <svg class="hidden size-6 group-aria-expanded:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+</button>
+{% endmacro %}
+
+{% set field = 'rounded-md border border-slate-300 bg-white p-2 focus:border-slate-500 focus:outline-none' %}
+
+{% macro labeled(label, extra='') %}
+<label class="block text-sm {{ extra }}">
+  <span class="text-slate-600">{{ label }}</span>
+  {{ caller() }}
+</label>
+{% endmacro %}
+
+{# Button, or link styled as one when href is set. current marks the link as the active state. #}
+{% macro button(label, href=None, primary=False, current=False, extra='') %}
+{% set cls = 'btn rounded-md border px-3 py-2 text-center text-sm font-medium ' ~ extra ~ ' ' ~ (
+  'btn-primary border-transparent bg-slate-800 text-white hover:bg-slate-700' if primary else
+  'border-slate-300 text-slate-600 hover:bg-slate-100 aria-[current=true]:bg-slate-100 aria-[current=true]:text-slate-800') %}
+{% if href %}
+<a href="{{ href }}" class="{{ cls }}" {% if current %}aria-current="true"{% endif %}>{{ label }}</a>
+{% else %}
+<button class="{{ cls }}">{{ label }}</button>
+{% endif %}
+{% endmacro %}
+
+{# months: list of metrics.Period, values are YYYY-MM keys #}
+{% macro month_select(name, label, months, selected) %}
+{% call labeled(label) %}
+  <select name="{{ name }}" class="mt-1 block tabular-nums {{ field }}">
+    {% for m in months %}<option value="{{ m.key }}" {% if m.key == selected %}selected{% endif %}>{{ m.label }}</option>{% endfor %}
+  </select>
+{% endcall %}
+{% endmacro %}
+
 {% macro card(extra='') %}
 <div class="panel rounded-lg border border-slate-200 bg-white p-4 {{ extra }}">{{ caller() }}</div>
 {% endmacro %}
@@ -25,7 +64,7 @@
 {% endmacro %}
 
 {% macro stat_card(c) %}
-{% call card() %}
+{% call card('flex flex-col') %}
   <p class="panel-title text-sm text-slate-500">{{ c.title }}</p>
   <dl class="mt-2 space-y-1">
     {% for s in c.stats %}
@@ -36,7 +75,7 @@
     </div>
     {% endfor %}
   </dl>
-  {% if c.note %}<p class="mt-2 text-sm text-slate-500">{{ c.note }}</p>{% endif %}
+  {% if c.note %}<p class="mt-auto pt-2 text-sm text-slate-500">{{ c.note }}</p>{% endif %}
 {% endcall %}
 {% endmacro %}
 

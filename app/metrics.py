@@ -1,12 +1,11 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, tzinfo
 
-MONTH_NAMES = [
-    "Januar", "Februar", "März", "April", "Mai", "Juni",
-    "Juli", "August", "September", "Oktober", "November", "Dezember",
-]
+MONTH_KEY = re.compile(r"\d{4}-(0[1-9]|1[0-2])")  # YYYY-MM
+DEFAULT_MONTHS = 12  # default range: the latest n complete months with data
 SAX_KEYS = ("pv", "grid_import", "grid_export", "bat_charge", "bat_discharge")
 HEAT_MODES = ("heating", "dhw")  # modes that produce heat; cooling is excluded from heat and COP
 DISPLAY_FROM = "2026-05"  # YYYY-MM, earlier months are hidden
@@ -85,16 +84,21 @@ CHARTS = (
 
 @dataclass
 class Period:
-    label: str
+    key: str  # YYYY-MM
     values: dict[str, float | None]
+    raw: dict[str, float]  # source values incl. heat fallback, summed for ranges
+    days: dict[str, int] = field(default_factory=dict)  # source -> days with data
     coverage: str = ""
+
+    @property
+    def label(self) -> str:
+        return month_label(self.key)
 
 
 @dataclass
-class Year:
-    label: str
+class Selection:
     total: dict[str, float | None]
-    months: list[Period] = field(default_factory=list)
+    months: list[Period]  # newest first
     days: dict[str, int] = field(default_factory=dict)  # source -> days with data
 
     @property
@@ -179,39 +183,66 @@ def _coverage(days: dict[str, int], labels: dict[str, str]) -> str:
     return " · ".join(f"{labels.get(s, s)}: {n} Tage" for s, n in sorted(days.items()))
 
 
-def build_years(
+def month_label(key: str) -> str:
+    """YYYY-MM -> MM.YYYY"""
+    y, m = key.split("-")
+    return f"{m}.{y}"
+
+
+def _add(target: dict, source: dict) -> None:
+    for key, value in source.items():
+        target[key] = target.get(key, 0) + value
+
+
+def build_months(
     totals: dict[str, dict[str, float]],
     coverage: dict[str, dict[str, int]],
     labels: dict[str, str],
     pv_factor: float = 1.0,
-) -> list[Year]:
-    years: dict[str, Year] = {}
-    year_raw: dict[str, dict[str, float]] = {}
-    for month in sorted(totals, reverse=True):
-        if month < DISPLAY_FROM:
+) -> list[Period]:
+    """All displayable months, newest first."""
+    months = []
+    for key in sorted(totals, reverse=True):
+        if key < DISPLAY_FROM:
             continue
-        y, m = month.split("-")
-        raw = _with_heat_fallback(totals[month])
-        sums = year_raw.setdefault(y, {})
-        for key, value in raw.items():
-            sums[key] = sums.get(key, 0.0) + value
-        year = years.setdefault(y, Year(label=y, total={}))
-        for source, n in coverage.get(month, {}).items():
-            year.days[source] = year.days.get(source, 0) + n
-        year.months.append(
-            Period(
-                label=MONTH_NAMES[int(m) - 1],
-                values=derive(raw, pv_factor),
-                coverage=_coverage(coverage.get(month, {}), labels),
-            )
-        )
-    for y, year in years.items():
-        year.total = derive(year_raw[y], pv_factor)
-    return list(years.values())
+        raw = _with_heat_fallback(totals[key])
+        days = coverage.get(key, {})
+        months.append(Period(key, derive(raw, pv_factor), raw, days, _coverage(days, labels)))
+    return months
 
 
-def chart_data(year: Year) -> dict:
-    months = year.months[::-1]
+def default_range(keys: list[str], current: str) -> tuple[str, str]:
+    """Latest DEFAULT_MONTHS complete months (before the running month `current`, YYYY-MM).
+
+    Falls back to all months if none is complete yet. keys: newest first.
+    """
+    complete = [k for k in keys if k < current] or keys
+    return complete[min(DEFAULT_MONTHS, len(complete)) - 1], complete[0]
+
+
+def resolve_range(keys: list[str], start: str | None, end: str | None, default: tuple[str, str]) -> tuple[str, str]:
+    """Validate a requested range: invalid bounds fall back to the default, others are clamped and ordered."""
+    oldest, newest = keys[-1], keys[0]
+
+    def clamp(value: str | None, fallback: str) -> str:
+        return min(max(value, oldest), newest) if value and MONTH_KEY.fullmatch(value) else fallback
+
+    start, end = clamp(start, default[0]), clamp(end, default[1])
+    return (end, start) if start > end else (start, end)
+
+
+def select(months: list[Period], start: str, end: str, pv_factor: float = 1.0) -> Selection:
+    picked = [m for m in months if start <= m.key <= end]
+    raw: dict[str, float] = {}
+    days: dict[str, int] = {}
+    for m in picked:
+        _add(raw, m.raw)
+        _add(days, m.days)
+    return Selection(derive(raw, pv_factor), picked, days)
+
+
+def chart_data(selection: Selection) -> dict:
+    months = selection.months[::-1]
     return {
         "labels": [m.label for m in months],
         "charts": [
@@ -234,10 +265,10 @@ def _scale(value: float | None, factor: float) -> float | None:
     return value * factor if value is not None else None
 
 
-def year_stats(year: Year, area_m2: float | None, price: float | None) -> tuple[list[StatCard], str]:
-    """Averages use days with data, so partial years are not diluted."""
-    t = year.total
-    days, hp_days = year.days.get("sax"), year.days.get("vaillant")
+def range_stats(selection: Selection, area_m2: float | None, price: float | None) -> tuple[list[StatCard], str]:
+    """Averages use days with data, so incomplete months are not diluted."""
+    t = selection.total
+    days, hp_days = selection.days.get("sax"), selection.days.get("vaillant")
     month_factor = 365.25 / 12
 
     def per_day(key: str, n: int | None) -> float | None:
@@ -272,7 +303,7 @@ def year_stats(year: Year, area_m2: float | None, price: float | None) -> tuple[
             Stat("Wärme erzeugt", _scale(t.get("hp_heat"), 1 / area_m2), "dec", "kWh/m²"),
         ), "Summe im Zeitraum, Heizen + Warmwasser, ohne Kühlung"))
 
-    basis = [f"{days or 0} Tage", year.span]
+    basis = [f"{days or 0} Tage", selection.span]
     if hp_days is not None and hp_days != days:
         basis.append(f"Wärmepumpe: {hp_days} Tage")
     if area_m2:

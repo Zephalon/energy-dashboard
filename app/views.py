@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hmac
-from datetime import date
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from flask import Blueprint, abort, jsonify, render_template, request
@@ -26,22 +26,33 @@ def index():
         }
         for source in settings.sources
     ]
-    years = metrics.build_years(*store.monthly(), sync.LABELS, settings.pv_correction_factor)
-    selected = next((y for y in years if y.label == request.args.get("year")), years[0] if years else None)
-    stats, stats_basis = (
-        metrics.year_stats(selected, settings.house_area_m2, settings.electricity_price) if selected else ([], "")
-    )
+    context = {
+        "pv_factor": settings.pv_correction_factor,
+        "groups": metrics.GROUPS,
+        "kpis": [metrics.COLUMNS[k] for k in metrics.KPI_KEYS],
+        "sync_info": sync_info,
+    }
+    months = metrics.build_months(*store.monthly(), sync.LABELS, settings.pv_correction_factor)
+    if not months:
+        return render_template("months.html", selection=None, **context)
+
+    keys = [m.key for m in months]
+    default = metrics.default_range(keys, current=datetime.now(tz).strftime("%Y-%m"))
+    start, end = metrics.resolve_range(keys, request.args.get("from"), request.args.get("to"), default)
+    selection = metrics.select(months, start, end, settings.pv_correction_factor)
+    stats, stats_basis = metrics.range_stats(selection, settings.house_area_m2, settings.electricity_price)
     return render_template(
         "months.html",
-        years=years,
-        year=selected,
-        pv_factor=settings.pv_correction_factor,
-        groups=metrics.GROUPS,
-        kpis=[metrics.COLUMNS[k] for k in metrics.KPI_KEYS],
-        chart=metrics.chart_data(selected) if selected else None,
+        selection=selection,
+        months=months,
+        range_from=start,
+        range_to=end,
+        is_default=(start, end) == default,
+        default_months=metrics.DEFAULT_MONTHS,
+        chart=metrics.chart_data(selection),
         stats=stats,
         stats_basis=stats_basis,
-        sync_info=sync_info,
+        **context,
     )
 
 

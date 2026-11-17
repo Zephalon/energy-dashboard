@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Cut-corner panel, same shape as .panel in the cyberpunk theme -->
+  <path fill="#05060b" d="M0 0h26l6 6v26H6l-6-6z"/>
+  <path stroke="#00f0ff" stroke-width="2" d="M25.5-.5l7 7"/>
+  <path fill="#fcee0a" d="M18 3 7 18h8l-2 11 12-16h-8l2-10z"/>
+</svg>

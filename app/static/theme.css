@@ -164,6 +164,8 @@
 
 [data-theme="cyberpunk"] .brand {
   position: relative;
+  /* Wide display font: shrink on phones so the burger still fits next to it */
+  font-size: min(1.125rem, 4.6vw);
   font-family: var(--cp-display);
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -237,7 +239,10 @@
 [data-theme="cyberpunk"] tbody tr:hover > * { background: rgb(252 238 10 / 0.07); color: var(--cp-yellow); }
 [data-theme="cyberpunk"] tfoot { color: var(--cp-yellow); border-top: 1px solid var(--cp-yellow); }
 
-[data-theme="cyberpunk"] input:focus { box-shadow: 0 0 0 1px var(--cp-cyan), 0 0 12px rgb(0 240 255 / 0.4); }
+[data-theme="cyberpunk"] :is(input, select):focus { box-shadow: 0 0 0 1px var(--cp-cyan), 0 0 12px rgb(0 240 255 / 0.4); }
+[data-theme="cyberpunk"] :is(select, .btn) { font-family: var(--cp-mono); }
+[data-theme="cyberpunk"] .btn { text-transform: uppercase; }
+[data-theme="cyberpunk"] .btn-primary { box-shadow: 0 0 10px rgb(252 238 10 / 0.35); }
 
 /* Theme toggle: plain link in the default theme, neon chip when active */
 .theme-toggle-led { display: none; }
@@ -259,6 +264,17 @@
   background: var(--cp-red);
   box-shadow: 0 0 6px var(--cp-red);
   animation: cp-blink 1.2s steps(1) infinite;
+}
+
+[data-theme="cyberpunk"] .menu-toggle {
+  color: var(--cp-cyan);
+  border: 1px solid rgb(0 240 255 / 0.45);
+  box-shadow: 0 0 10px rgb(0 240 255 / 0.25), inset 0 0 8px rgb(0 240 255 / 0.15);
+}
+[data-theme="cyberpunk"] .menu-toggle[aria-expanded="true"] {
+  color: var(--cp-yellow);
+  border-color: var(--cp-yellow);
+  box-shadow: 0 0 10px rgb(252 238 10 / 0.35), inset 0 0 8px rgb(252 238 10 / 0.2);
 }
 
 /* CRT power-on when switching into the theme */

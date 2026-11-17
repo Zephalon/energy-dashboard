@@ -6,8 +6,8 @@ Kleine, passwortgeschützte Flask-App für das eigene Zuhause. Sie holt Tageswer
 
 ## Features
 
-- Monatsübersicht pro Jahr mit Kennzahlen (Hausverbrauch, Arbeitszahl, Autarkie, Eigenverbrauch …)
-- Diagramme (Chart.js) pro Jahr
+- Monatsübersicht für einen frei wählbaren Zeitraum mit Kennzahlen (Hausverbrauch, Arbeitszahl, Autarkie, Eigenverbrauch …)
+- Diagramme (Chart.js) für den gewählten Zeitraum
 - Synchronisation per HTTP-Endpoint oder CLI, mit Max-Alter pro Quelle und Datei-Lock
 - Ein Benutzer, PBKDF2-Passwort-Hash, CSRF-Schutz, Login-Sperre, strikte Security-Header
 - Läuft ohne venv auf Shared Hosting mit Phusion Passenger (z. B. Plesk)
@@ -103,13 +103,13 @@ Nach Code-Änderungen startet Passenger die App neu, wenn `tmp/restart.txt` im A
 | WP-Anteil | WP-Strom / Hausverbrauch |
 | Autarkie | 1 − Netzbezug / Hausverbrauch |
 | Eigenverbrauch | (PV − Einspeisung) / PV |
-| Ø pro Tag | Jahressumme / Tage mit Daten (SAX, für WP-Strom Vaillant) |
+| Ø pro Tag | Summe im Zeitraum / Tage mit Daten (SAX, für WP-Strom Vaillant) |
 | Ø Stromkosten pro Monat | Ø pro Tag × 365,25 / 12 × `ELECTRICITY_PRICE` (ohne Grundgebühr) |
 | Heizenergie pro m² | WP-Strom bzw. erzeugte Wärme für Heizen + Warmwasser im Zeitraum / `HOUSE_AREA_M2` |
 
-Die Jahresstatistik bezieht sich auf die angezeigten Monate des gewählten Jahres. Ohne `ELECTRICITY_PRICE` bzw. `HOUSE_AREA_M2` entfällt die jeweilige Karte.
+Die Statistik bezieht sich auf die Monate des gewählten Zeitraums. Ohne `ELECTRICITY_PRICE` bzw. `HOUSE_AREA_M2` entfällt die jeweilige Karte.
 
-PV ist der SAX-Wert × `PV_CORRECTION_FACTOR` (Default 1,2). Der Faktor greift nur in der Anzeige, in SQLite stehen die Rohwerte. Angezeigt werden Monate ab `DISPLAY_FROM` in `app/metrics.py`, das Jahr wählt man über den Umschalter im Header (`/?year=2026`).
+PV ist der SAX-Wert × `PV_CORRECTION_FACTOR` (Default 1,2). Der Faktor greift nur in der Anzeige, in SQLite stehen die Rohwerte. Angezeigt werden Monate ab `DISPLAY_FROM` in `app/metrics.py`, den Zeitraum wählt man monatsgenau über Von/Bis (`/?from=2026-05&to=2026-11`). Standard sind die letzten 12 kompletten Monate mit Daten (`DEFAULT_MONTHS`), der laufende Monat lässt sich manuell dazuwählen.
 
 ## SAX-Felder
 
