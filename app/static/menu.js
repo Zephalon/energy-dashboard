@@ -1,28 +1,24 @@
 // Disclosure menus: [data-menu-toggle][aria-controls] flips aria-expanded; CSS shows the menu
-// (peer-aria-expanded). Closes on Escape, outside click, or once the toggle is hidden (desktop).
+// (peer-aria-expanded). Closes on Escape or a click outside the toggle and its menu.
 (() => {
   const toggles = [...document.querySelectorAll("[data-menu-toggle]")];
 
+  const isOpen = (toggle) => toggle.getAttribute("aria-expanded") === "true";
   const setOpen = (toggle, open) => toggle.setAttribute("aria-expanded", String(open));
-  const menuOf = (toggle) => document.getElementById(toggle.getAttribute("aria-controls"));
-  const closeAll = (except) => toggles.forEach((t) => t !== except && setOpen(t, false));
+  const isInside = (toggle, target) =>
+    toggle.contains(target) || document.getElementById(toggle.getAttribute("aria-controls"))?.contains(target);
 
-  toggles.forEach((toggle) =>
-    toggle.addEventListener("click", () => setOpen(toggle, toggle.getAttribute("aria-expanded") !== "true")),
-  );
+  toggles.forEach((toggle) => toggle.addEventListener("click", () => setOpen(toggle, !isOpen(toggle))));
 
   document.addEventListener("click", (e) => {
-    closeAll(toggles.find((t) => t.contains(e.target) || menuOf(t)?.contains(e.target)));
+    toggles.forEach((t) => isInside(t, e.target) || setOpen(t, false));
   });
 
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    const open = toggles.find((t) => t.getAttribute("aria-expanded") === "true");
-    if (!open) return;
-    setOpen(open, false);
-    open.focus();
+    toggles.filter(isOpen).forEach((t) => {
+      setOpen(t, false);
+      t.focus();
+    });
   });
-
-  // Reset when growing past the breakpoint, so the menu isn't unexpectedly open on shrinking back
-  window.addEventListener("resize", () => toggles.forEach((t) => t.offsetParent || setOpen(t, false)));
 })();

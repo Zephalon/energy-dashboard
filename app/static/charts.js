@@ -1,7 +1,8 @@
 (() => {
   const source = document.getElementById("chart-data");
-  if (!source || !window.Chart) return;
+  if (!source || !window.Chart || !window.chartTheme) return;
 
+  const { token, alpha, format, glow, tooltip, mount } = window.chartTheme;
   const { labels, charts } = JSON.parse(source.textContent);
   const FORMATS = {
     kwh: { scale: 1, digits: 0 },
@@ -9,40 +10,14 @@
     ratio: { scale: 1, digits: 1 },
   };
   const canvases = document.querySelectorAll("canvas[data-chart]");
-  let instances = [];
 
-  // Colors and effects come from CSS tokens in theme.css, so every theme is defined in one place.
-  const token = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  const alpha = (hex, opacity) => (opacity >= 1 ? hex : hex + Math.round(opacity * 255).toString(16).padStart(2, "0"));
-
-  // Neon glow around lines and bars when --chart-glow > 0
-  const glow = {
-    id: "glow",
-    beforeDatasetDraw(chart, { index }) {
-      const blur = Number(token("--chart-glow"));
-      chart.ctx.save();
-      if (!blur) return;
-      chart.ctx.shadowBlur = blur;
-      chart.ctx.shadowColor = chart.data.datasets[index].borderColor;
-    },
-    afterDatasetDraw(chart) {
-      chart.ctx.restore();
-    },
-  };
-
-  const render = () => {
-    instances.forEach((c) => c.destroy());
+  mount(() => {
     const fill = Number(token("--chart-fill-opacity"));
 
-    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
-    Chart.defaults.color = token("--chart-text");
-    Chart.defaults.borderColor = token("--chart-grid");
-
-    instances = [...canvases].map((canvas) => {
+    return [...canvases].map((canvas) => {
       const chart = charts[Number(canvas.dataset.chart)];
       const { scale, digits } = FORMATS[chart.kind];
-      const format = (v) =>
-        v.toLocaleString("de-DE", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+      const fmt = (v) => format(v, digits);
 
       const sum = (items) => items.reduce((total, item) => total + (item.parsed.y ?? 0), 0);
 
@@ -72,13 +47,11 @@
           plugins: {
             legend: { display: chart.series.length > 1, position: "top", align: "end" },
             tooltip: {
-              backgroundColor: token("--chart-tooltip-bg"),
-              borderColor: token("--chart-tooltip-border"),
-              borderWidth: 1,
+              ...tooltip(),
               callbacks: {
                 label: (ctx) =>
-                  ctx.parsed.y === null ? null : `${ctx.dataset.label}: ${format(ctx.parsed.y)} ${chart.unit}`.trim(),
-                footer: (items) => (chart.stacked ? `Summe: ${format(sum(items))} ${chart.unit}`.trim() : ""),
+                  ctx.parsed.y === null ? null : `${ctx.dataset.label}: ${fmt(ctx.parsed.y)} ${chart.unit}`.trim(),
+                footer: (items) => (chart.stacked ? `Summe: ${fmt(sum(items))} ${chart.unit}`.trim() : ""),
               },
             },
           },
@@ -88,18 +61,11 @@
               stacked: chart.stacked,
               beginAtZero: true,
               suggestedMax: chart.kind === "pct" ? 100 : undefined,
-              ticks: { callback: (v) => format(v) },
+              ticks: { callback: (v) => fmt(v) },
             },
           },
         },
       });
     });
-  };
-
-  // A theme's web font may still be loading; canvas text needs it before drawing
-  const renderWhenFontReady = () =>
-    document.fonts.load(`1em ${getComputedStyle(document.body).fontFamily}`).finally(render);
-
-  renderWhenFontReady();
-  document.addEventListener("themechange", renderWhenFontReady);
+  });
 })();

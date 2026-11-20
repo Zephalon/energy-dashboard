@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS login_failures (
 );
 """
 
-Row = tuple[str, str, float]  # (day, metric, kwh)
+Row = tuple[str, str, float]  # (day, metric, kwh); non-energy metrics (temp_*) use the kwh column as plain value
+NON_ENERGY = "temp_%"  # LIKE pattern for metrics that must not be summed as energy
 
 
 def utcnow() -> str:
@@ -73,7 +74,8 @@ class Store:
         with self._conn() as conn:
             for r in conn.execute(
                 "SELECT substr(day, 1, 7) AS month, metric, SUM(kwh) AS kwh "
-                "FROM daily GROUP BY month, metric"
+                "FROM daily WHERE metric NOT LIKE ? GROUP BY month, metric",
+                (NON_ENERGY,),
             ):
                 totals[r["month"]][r["metric"]] = r["kwh"]
             for r in conn.execute(
@@ -82,6 +84,16 @@ class Store:
             ):
                 coverage[r["month"]][r["source"]] = r["days"]
         return totals, coverage
+
+    def daily(self, start: str, end: str) -> dict[str, dict[str, float]]:
+        """Returns {day: {metric: value}} for start <= day <= end (YYYY-MM-DD)."""
+        days: dict[str, dict[str, float]] = defaultdict(dict)
+        with self._conn() as conn:
+            for r in conn.execute(
+                "SELECT day, metric, kwh FROM daily WHERE day BETWEEN ? AND ?", (start, end)
+            ):
+                days[r["day"]][r["metric"]] = r["kwh"]
+        return days
 
     def states(self) -> dict[str, sqlite3.Row]:
         with self._conn() as conn:

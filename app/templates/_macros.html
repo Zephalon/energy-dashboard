@@ -8,13 +8,29 @@
 </button>
 {% endmacro %}
 
-{# Burger button for small screens; must directly precede its menu (peer-aria-expanded). menu.js toggles aria-expanded. #}
-{% macro menu_toggle(target, label='Menü') %}
+{# Disclosure button; must precede its menu as a sibling (peer-aria-expanded). menu.js toggles aria-expanded.
+   The caller renders the icon. #}
+{% macro menu_toggle(target, label) %}
 <button type="button" data-menu-toggle aria-controls="{{ target }}" aria-expanded="false" aria-label="{{ label }}"
-        class="menu-toggle group peer -my-2 ml-auto rounded p-2 text-slate-500 hover:text-slate-800 md:hidden">
-  <svg class="size-6 group-aria-expanded:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-  <svg class="hidden size-6 group-aria-expanded:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        class="menu-toggle peer -my-2 rounded p-2 text-slate-500 hover:text-slate-800 aria-expanded:bg-slate-100 aria-expanded:text-slate-800">
+  {{ caller() }}
 </button>
+{% endmacro %}
+
+{# User menu: theme switch and logout. Same dropdown on all screen sizes, always at the right end of the header. #}
+{% macro user_menu() %}
+<div class="relative ml-auto md:ml-0">
+  {% call menu_toggle('user-menu', 'Benutzermenü') %}
+  <svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+  {% endcall %}
+  <div id="user-menu" class="dropdown absolute right-0 top-full z-50 mt-2 hidden min-w-44 flex-col items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-lg peer-aria-expanded:flex">
+    {{ theme_toggle() }}
+    <form method="post" action="{{ url_for('auth.logout') }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button class="text-sm text-slate-500 hover:text-slate-800">Abmelden</button>
+    </form>
+  </div>
+</div>
 {% endmacro %}
 
 {% set field = 'rounded-md border border-slate-300 bg-white p-2 focus:border-slate-500 focus:outline-none' %}
@@ -45,6 +61,66 @@
     {% for m in months %}<option value="{{ m.key }}" {% if m.key == selected %}selected{% endif %}>{{ m.label }}</option>{% endfor %}
   </select>
 {% endcall %}
+{% endmacro %}
+
+{# Page header with navigation; active is the endpoint of the current page #}
+{% set nav = [('views.index', 'Übersicht'), ('views.forecast_page', 'Prognosen')] %}
+{% macro site_header(active) %}
+<header class="border-b border-slate-200 bg-white">
+  {# Mobile: brand + user menu in row 1, page tabs full width in row 2. md+: one row. #}
+  <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-3 p-4">
+    {{ brand() }}
+    <nav class="order-last flex w-full gap-2 md:order-none md:ml-auto md:w-auto" aria-label="Seiten">
+      {% for endpoint, label in nav %}{{ button(label, href=url_for(endpoint), current=endpoint == active, extra='flex-1 md:flex-none') }}{% endfor %}
+    </nav>
+    {{ user_menu() }}
+  </div>
+</header>
+{% endmacro %}
+
+{# Section heading; the secondary text (e.g. the period) moves below the title on small screens #}
+{% macro section_title(title, sub=none) %}
+<h2 class="text-xl font-semibold">
+  <span class="flex flex-col gap-1 md:flex-row md:items-baseline md:gap-3">
+    <span>{{ title }}</span>
+    {% if sub %}<span class="section-sub text-base font-normal text-slate-500">{{ sub }}</span>{% endif %}
+  </span>
+</h2>
+{% endmacro %}
+
+{# Month range form (needs range.js); the default button links to the page without parameters #}
+{% macro range_form(endpoint, months, range_from, range_to, default_label, is_default) %}
+<form method="get" action="{{ url_for(endpoint) }}" data-range-form class="flex flex-wrap items-end gap-3" aria-label="Zeitraum">
+  {{ month_select('from', 'Von', months, range_from) }}
+  {{ month_select('to', 'Bis', months, range_to) }}
+  {{ button('Anzeigen', primary=True) }}
+  {{ button(default_label, href=url_for(endpoint), current=is_default) }}
+</form>
+{% endmacro %}
+
+{# Chart.js plus the shared theme helpers; page scripts follow (all deferred, so order is kept) #}
+{% macro chart_scripts() %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4" defer></script>
+<script src="{{ url_for('static', filename='chart-theme.js') }}" defer></script>
+{% for name in varargs %}<script src="{{ url_for('static', filename=name) }}" defer></script>
+{% endfor %}
+{% endmacro %}
+
+{# Chart panel with a canvas; the data attribute (name, optional value) identifies it for the page script #}
+{% macro chart_card(title, unit, attr, value=none, height='h-64') %}
+{% call card() %}
+  <h3 class="panel-title text-sm text-slate-500">{{ title }}{% if unit %} <span class="text-slate-400">{{ unit }}</span>{% endif %}</h3>
+  <div class="relative mt-4 {{ height }}"><canvas {{ attr }}{% if value is not none %}="{{ value }}"{% endif %} aria-label="{{ title }}" role="img"></canvas></div>
+{% endcall %}
+{% endmacro %}
+
+{% macro sync_footer(sync_info) %}
+{% for info in sync_info %}
+<p>
+  {{ info.label }}: Stand {{ info.success }}
+  {% if info.error %}<span class="text-red-600">· letzter Fehler: {{ info.error }}</span>{% endif %}
+</p>
+{% endfor %}
 {% endmacro %}
 
 {% macro card(extra='') %}

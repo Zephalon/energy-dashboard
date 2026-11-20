@@ -20,12 +20,14 @@ def _bool(name: str, default: bool) -> bool:
     return default if value is None else value.lower() in {"1", "true", "yes", "on"}
 
 
-def _positive(name: str) -> float | None:
+def _float(name: str) -> float | None:
     value = _env(name)
-    if value is None:
-        return None
-    number = float(value.replace(",", "."))
-    return number if number > 0 else None
+    return None if value is None else float(value.replace(",", "."))
+
+
+def _positive(name: str) -> float | None:
+    number = _float(name)
+    return number if number is not None and number > 0 else None
 
 
 @dataclass(frozen=True)
@@ -53,6 +55,11 @@ class Settings:
     vaillant_days_back: int
     vaillant_chunk_pause: float
 
+    latitude: float | None
+    longitude: float | None
+    dwd_max_age_hours: float
+    dwd_days_back: int
+
     @property
     def db_path(self) -> Path:
         return self.data_dir / "energy.sqlite"
@@ -64,6 +71,8 @@ class Settings:
             enabled.append("sax")
         if self.vaillant_user and self.vaillant_password:
             enabled.append("vaillant")
+        if self.latitude is not None and self.longitude is not None:
+            enabled.append("dwd")
         return enabled
 
     def require_web(self) -> None:
@@ -102,6 +111,10 @@ def load_settings() -> Settings:
         vaillant_max_age_hours=float(_env("VAILLANT_MAX_AGE_HOURS", "1")),
         vaillant_days_back=int(_env("VAILLANT_DAYS_BACK", "45")),
         vaillant_chunk_pause=float(_env("VAILLANT_CHUNK_PAUSE", "5")),
+        latitude=_float("LATITUDE"),
+        longitude=_float("LONGITUDE"),
+        dwd_max_age_hours=float(_env("DWD_MAX_AGE_HOURS", "12")),
+        dwd_days_back=int(_env("DWD_DAYS_BACK", "10")),
     )
 
 

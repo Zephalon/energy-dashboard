@@ -52,19 +52,21 @@ def cmd_sync(args) -> None:
 
 
 def main() -> None:
+    from app.sync import SOURCES
+
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     parser = argparse.ArgumentParser()
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_sync = sub.add_parser("sync", help="Fällige Quellen synchronisieren")
-    p_sync.add_argument("--source", choices=["sax", "vaillant"])
+    p_sync.add_argument("--source", choices=list(SOURCES))
     p_sync.add_argument("--force", action="store_true", help="Max-Alter ignorieren")
     p_sync.set_defaults(func=cmd_sync)
 
     p_back = sub.add_parser("backfill", help="Historie ab Monat nachladen")
     p_back.add_argument("--from", dest="from_month", required=True, metavar="YYYY-MM")
     p_back.add_argument("--to", dest="to_month", metavar="YYYY-MM")
-    p_back.add_argument("--source", choices=["sax", "vaillant"])
+    p_back.add_argument("--source", choices=list(SOURCES))
     p_back.set_defaults(func=cmd_sync, force=True)
 
     p_hash = sub.add_parser("hash-password", help="Hash für APP_PASSWORD_HASH erzeugen")

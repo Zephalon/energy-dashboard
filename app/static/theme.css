@@ -15,6 +15,7 @@
   --series-heat_heating: #f97316;
   --series-heat_dhw: #e11d48;
   --series-heat_cooling: #3b82f6;
+  --series-el_heating: #0ea5e9;
 
   --chart-text: #64748b;
   --chart-grid: #e2e8f0;
@@ -79,6 +80,7 @@
   --series-heat_heating: var(--cp-pink);
   --series-heat_dhw: var(--cp-yellow);
   --series-heat_cooling: var(--cp-cyan);
+  --series-el_heating: var(--cp-cyan);
 
   --chart-text: #6f95a6;
   --chart-grid: rgb(0 240 255 / 0.08);
@@ -93,18 +95,20 @@
 [data-theme="cyberpunk"] body {
   color: var(--cp-text);
   font-weight: 500;
-  background:
-    radial-gradient(ellipse 60% 50% at 0 0, rgb(0 240 255 / 0.12), transparent),
-    radial-gradient(ellipse 60% 50% at 100% 100%, rgb(255 0 60 / 0.14), transparent),
-    linear-gradient(rgb(0 240 255 / 0.035) 1px, transparent 1px) 0 0 / 32px 32px,
-    linear-gradient(90deg, rgb(0 240 255 / 0.035) 1px, transparent 1px) 0 0 / 32px 32px,
-    var(--cp-bg);
-  background-attachment: fixed;
+  background: var(--cp-bg);
 }
 
-/* Scanlines + slow scan beam */
+/*
+ * Decoration as fixed layers instead of background-attachment: fixed, which repaints the whole
+ * viewport on every scroll frame. The static layers are rasterized once; the scan beam only moves
+ * via transform, so it runs on the compositor.
+ *   body::before  backdrop (glows + grid) behind the content
+ *   body::after   scanlines above the content
+ *   html::after   scan beam (body has no pseudo-element left)
+ */
 [data-theme="cyberpunk"] body::before,
-[data-theme="cyberpunk"] body::after {
+[data-theme="cyberpunk"] body::after,
+:root[data-theme="cyberpunk"]::after {
   content: "";
   position: fixed;
   inset: 0;
@@ -112,31 +116,47 @@
   pointer-events: none;
 }
 [data-theme="cyberpunk"] body::before {
-  background: repeating-linear-gradient(transparent 0 2px, rgb(0 0 0 / 0.22) 2px 3px);
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 60% 50% at 0 0, rgb(0 240 255 / 0.12), transparent),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgb(255 0 60 / 0.14), transparent),
+    linear-gradient(rgb(0 240 255 / 0.035) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(90deg, rgb(0 240 255 / 0.035) 1px, transparent 1px) 0 0 / 32px 32px;
 }
 [data-theme="cyberpunk"] body::after {
+  background: repeating-linear-gradient(transparent 0 2px, rgb(0 0 0 / 0.22) 2px 3px);
+}
+:root[data-theme="cyberpunk"]::after {
   inset: -20vh 0 auto;
   height: 20vh;
   background: linear-gradient(transparent, rgb(0 240 255 / 0.05), transparent);
+  will-change: transform;
   animation: cp-scan 9s linear infinite;
 }
 
 [data-theme="cyberpunk"] ::selection { background: var(--cp-yellow); color: var(--cp-bg); }
 
+/* Nearly opaque instead of backdrop-filter, which re-blurs the scrolling content behind it every frame */
 [data-theme="cyberpunk"] header {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: rgb(5 6 11 / 0.82);
-  backdrop-filter: blur(10px);
+  background: rgb(5 6 11 / 0.95);
   border-bottom: 1px solid var(--cp-yellow);
   box-shadow: 0 0 24px rgb(252 238 10 / 0.18);
+}
+/* Sticky only where there is room; on phones the two-row header scrolls away */
+@media (min-width: 48rem) {
+  [data-theme="cyberpunk"] header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
 }
 
 [data-theme="cyberpunk"] h2 {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 0.75rem;
+  /* Wide display font: shrink on phones so long words still fit */
+  font-size: min(1.25rem, 5vw);
   font-family: var(--cp-display);
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -148,10 +168,13 @@
   content: "";
   flex: 1;
   height: 1px;
+  translate: 0 -0.35em; /* from the baseline up to the middle of the capitals */
   background: linear-gradient(90deg, var(--cp-yellow), transparent);
 }
 
 [data-theme="cyberpunk"] .tabular-nums { font-family: var(--cp-mono); }
+/* Period under a heading: data font with tighter tracking, so it stays on one line on phones */
+[data-theme="cyberpunk"] .section-sub { font-family: var(--cp-mono); letter-spacing: 0.04em; }
 
 [data-theme="cyberpunk"] footer {
   font-family: var(--cp-mono);
@@ -164,7 +187,7 @@
 
 [data-theme="cyberpunk"] .brand {
   position: relative;
-  /* Wide display font: shrink on phones so the burger still fits next to it */
+  /* Wide display font: shrink on phones so the user menu still fits next to it */
   font-size: min(1.125rem, 4.6vw);
   font-family: var(--cp-display);
   font-weight: 900;
@@ -277,6 +300,11 @@
   box-shadow: 0 0 10px rgb(252 238 10 / 0.35), inset 0 0 8px rgb(252 238 10 / 0.2);
 }
 
+[data-theme="cyberpunk"] .dropdown {
+  border-color: var(--cp-yellow);
+  box-shadow: 0 0 16px rgb(252 238 10 / 0.2);
+}
+
 /* CRT power-on when switching into the theme */
 [data-theme="cyberpunk"].theme-boot body { animation: cp-boot 0.7s ease-out; }
 
@@ -303,5 +331,6 @@
 @media (prefers-reduced-motion: reduce) {
   [data-theme="cyberpunk"] *,
   [data-theme="cyberpunk"] *::before,
-  [data-theme="cyberpunk"] *::after { animation: none !important; }
+  [data-theme="cyberpunk"] *::after,
+  :root[data-theme="cyberpunk"]::after { animation: none !important; }
 }

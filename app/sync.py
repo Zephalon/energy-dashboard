@@ -3,35 +3,42 @@ from __future__ import annotations
 import fcntl
 import logging
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Callable, Iterator
 from zoneinfo import ZoneInfo
 
 from .db import Row, Store
 from .settings import Settings
-from .sources import sax, vaillant
+from .sources import dwd, sax, vaillant
 
 log = logging.getLogger(__name__)
 
 Fetcher = Callable[[Settings, date, date], list[Row]]
 
-FETCHERS: dict[str, Fetcher] = {"sax": sax.fetch, "vaillant": vaillant.fetch}
-LABELS = {"sax": "Solar (SAX)", "vaillant": "Wärmepumpe (Vaillant)"}
+
+
+@dataclass(frozen=True)
+class Source:
+    label: str
+    fetch: Fetcher
+    max_age_hours: Callable[[Settings], float]
+    days_back: Callable[[Settings], int]  # default look-back of a regular sync
+
+
+SOURCES: dict[str, Source] = {
+    # SAX liefert ganze Monate: drei Tage Rückblick ziehen am Monatsanfang den Vormonat mit.
+    "sax": Source("Solar (SAX)", sax.fetch, lambda s: s.sax_max_age_hours, lambda s: 3),
+    "vaillant": Source(
+        "Wärmepumpe (Vaillant)", vaillant.fetch, lambda s: s.vaillant_max_age_hours, lambda s: s.vaillant_days_back
+    ),
+    "dwd": Source("Wetter (DWD)", dwd.fetch, lambda s: s.dwd_max_age_hours, lambda s: s.dwd_days_back),
+}
+LABELS = {key: source.label for key, source in SOURCES.items()}
 
 
 def local_today(settings: Settings) -> date:
     return datetime.now(ZoneInfo(settings.timezone)).date()
-
-
-def _max_age(settings: Settings, source: str) -> timedelta:
-    hours = settings.sax_max_age_hours if source == "sax" else settings.vaillant_max_age_hours
-    return timedelta(hours=hours)
-
-
-def _default_start(settings: Settings, source: str, today: date) -> date:
-    # SAX liefert ganze Monate: drei Tage Rückblick ziehen am Monatsanfang den Vormonat mit.
-    days = 3 if source == "sax" else settings.vaillant_days_back
-    return today - timedelta(days=days)
 
 
 def _is_due(state, max_age: timedelta) -> bool:
@@ -74,12 +81,15 @@ def run(
             if source not in settings.sources:
                 results[source] = "not configured"
                 continue
-            if not (force or start) and not _is_due(states.get(source), _max_age(settings, source)):
+            config = SOURCES[source]
+            if not (force or start) and not _is_due(
+                states.get(source), timedelta(hours=config.max_age_hours(settings))
+            ):
                 results[source] = "fresh"
                 continue
             store.begin_sync(source)
             try:
-                rows = FETCHERS[source](settings, start or _default_start(settings, source, end), end)
+                rows = config.fetch(settings, start or end - timedelta(days=config.days_back(settings)), end)
                 count = store.upsert(source, rows)
             except Exception as exc:  # APIs sind inoffiziell, alles kann brechen
                 message = f"{type(exc).__name__}: {exc}"[:300]

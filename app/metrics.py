@@ -103,8 +103,7 @@ class Selection:
 
     @property
     def span(self) -> str:
-        first, last = self.months[-1].label, self.months[0].label
-        return first if first == last else f"{first}–{last}"
+        return span_label(self.months[-1].key, self.months[0].key)
 
 
 @dataclass(frozen=True)
@@ -140,7 +139,7 @@ def _ratio(a: float | None, b: float | None) -> float | None:
     return a / b if a is not None and b else None
 
 
-def _with_heat_fallback(raw: dict[str, float]) -> dict[str, float]:
+def with_heat_fallback(raw: dict[str, float]) -> dict[str, float]:
     """Fill missing heat_<mode> with el_<mode> + env_<mode>, before summing, so totals match months."""
     filled = dict(raw)
     for m in HEAT_MODES:
@@ -183,6 +182,18 @@ def _coverage(days: dict[str, int], labels: dict[str, str]) -> str:
     return " · ".join(f"{labels.get(s, s)}: {n} Tage" for s, n in sorted(days.items()))
 
 
+def span_label(start: str, end: str) -> str:
+    """YYYY-MM keys -> MM.YYYY or MM.YYYY–MM.YYYY"""
+    first, last = month_label(start), month_label(end)
+    return first if first == last else f"{first}–{last}"
+
+
+def day_label(key: str) -> str:
+    """YYYY-MM-DD -> DD.MM.YYYY"""
+    y, m, d = key.split("-")
+    return f"{d}.{m}.{y}"
+
+
 def month_label(key: str) -> str:
     """YYYY-MM -> MM.YYYY"""
     y, m = key.split("-")
@@ -199,13 +210,14 @@ def build_months(
     coverage: dict[str, dict[str, int]],
     labels: dict[str, str],
     pv_factor: float = 1.0,
+    display_from: str = DISPLAY_FROM,
 ) -> list[Period]:
-    """All displayable months, newest first."""
+    """All months from display_from on, newest first."""
     months = []
     for key in sorted(totals, reverse=True):
-        if key < DISPLAY_FROM:
+        if key < display_from:
             continue
-        raw = _with_heat_fallback(totals[key])
+        raw = with_heat_fallback(totals[key])
         days = coverage.get(key, {})
         months.append(Period(key, derive(raw, pv_factor), raw, days, _coverage(days, labels)))
     return months
@@ -324,6 +336,8 @@ def fmt(value: float | None, kind: str = "kwh") -> str:
         return f"{value * 100:.0f}"
     if kind in ("ratio", "dec"):
         return _de(value, 1)
+    if kind == "money":
+        return _de(value, 2)
     return _de(value, 0)
 
 

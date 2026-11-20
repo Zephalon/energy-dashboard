@@ -1,35 +1,15 @@
 {% extends "base.html" %}
-{% from "_macros.html" import brand, button, card, kpi, menu_toggle, month_select, row, stat_card, theme_toggle %}
+{% from "_macros.html" import card, chart_card, chart_scripts, kpi, range_form, row, section_title, site_header, stat_card, sync_footer %}
 {% block body %}
-<header class="border-b border-slate-200 bg-white">
-  {# Mobile: brand + burger in row 1, menu (when open) below. md+: one row, burger hidden. #}
-  <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-3 p-4">
-    {{ brand() }}
-    {{ menu_toggle('header-menu') }}
-    <div id="header-menu" class="hidden w-full flex-col items-start gap-3 border-t border-slate-200 pt-3 peer-aria-expanded:flex md:ml-auto md:flex md:w-auto md:flex-row md:items-center md:gap-4 md:border-0 md:pt-0">
-      {{ theme_toggle() }}
-      <form method="post" action="{{ url_for('auth.logout') }}">
-        <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-        <button class="text-sm text-slate-500 hover:text-slate-800">Abmelden</button>
-      </form>
-    </div>
-  </div>
-</header>
+{{ site_header('views.index') }}
 
 <main class="mx-auto max-w-7xl space-y-8 p-4">
   {% if selection %}
   <section class="space-y-4">
-    <h2 class="text-xl font-semibold">
-      {{ selection.span }}
-      <span class="text-base font-normal text-slate-500">{{ selection.months | length }} {{ 'Monat' if selection.months | length == 1 else 'Monate' }}</span>
-    </h2>
+    {% set count = selection.months | length %}
+    {{ section_title(selection.span, '%d %s' % (count, 'Monat' if count == 1 else 'Monate')) }}
 
-    <form method="get" action="{{ url_for('views.index') }}" data-range-form class="flex flex-wrap items-end gap-3" aria-label="Zeitraum">
-      {{ month_select('from', 'Von', months, range_from) }}
-      {{ month_select('to', 'Bis', months, range_to) }}
-      {{ button('Anzeigen', primary=True) }}
-      {{ button('Letzte %d Monate' % default_months, href=url_for('views.index'), current=is_default) }}
-    </form>
+    {{ range_form('views.index', months, range_from, range_to, 'Letzte %d Monate' % default_months, is_default) }}
 
     <div class="grid grid-cols-2 gap-4 md:grid-cols-5">
       {% for column in kpis %}{{ kpi(column, selection.total.get(column.key)) }}{% endfor %}
@@ -73,29 +53,19 @@
   </section>
 
   <section class="space-y-4">
-    <h2 class="text-xl font-semibold">Monatsverlauf</h2>
+    {{ section_title('Monatsverlauf') }}
     {% for c in chart.charts %}
-    {% call card() %}
-      <h3 class="panel-title text-sm text-slate-500">{{ c.title }}{% if c.unit %} <span class="text-slate-400">{{ c.unit }}</span>{% endif %}</h3>
-      <div class="relative mt-4 h-64"><canvas data-chart="{{ loop.index0 }}" aria-label="{{ c.title }}" role="img"></canvas></div>
-    {% endcall %}
+    {{ chart_card(c.title, c.unit, 'data-chart', loop.index0) }}
     {% endfor %}
   </section>
   <script type="application/json" id="chart-data">{{ chart | tojson }}</script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4" defer></script>
-  <script src="{{ url_for('static', filename='charts.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='range.js') }}" defer></script>
+  {{ chart_scripts('charts.js', 'range.js') }}
   {% else %}
   {% call card() %}<p class="text-sm text-slate-500">Noch keine Daten. Abruf über <code>/sync</code> oder <code>manage.py backfill</code>.</p>{% endcall %}
   {% endif %}
 
   <footer class="space-y-1 text-sm text-slate-500">
-    {% for info in sync_info %}
-    <p>
-      {{ info.label }}: Stand {{ info.success }}
-      {% if info.error %}<span class="text-red-600">· letzter Fehler: {{ info.error }}</span>{% endif %}
-    </p>
-    {% endfor %}
+    {{ sync_footer(sync_info) }}
     <p>Hausverbrauch = PV + Netzbezug − Einspeisung + Akku entladen − Akku laden.</p>
     <p>WP-Strom gesamt = Heizen + Warmwasser + Kühlung. Wärme erzeugt und Arbeitszahl (= Wärme / Strom) beziehen sich nur auf Heizen + Warmwasser, ohne Kühlung.</p>
     {% if pv_factor != 1 %}<p>PV-Erzeugung inkl. Korrekturfaktor × {{ pv_factor | fmt('ratio') }}.</p>{% endif %}

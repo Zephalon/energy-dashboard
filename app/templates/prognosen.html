@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card, chart_card, chart_scripts, range_form, section_title, site_header, stat_card, sync_footer %}
+{% block title %}Prognosen · Energie{% endblock %}
+{% block body %}
+{{ site_header('views.forecast_page') }}
+
+<main class="mx-auto max-w-7xl space-y-8 p-4">
+  {% if months %}
+  <section class="space-y-4">
+    {{ section_title('Heizenergie nach Außentemperatur', span) }}
+
+    {{ range_form('views.forecast_page', months, range_from, range_to, 'Standard', is_default) }}
+
+    {% if model %}
+    <div class="grid gap-4 md:grid-cols-3">
+      {% for c in stats %}{{ stat_card(c) }}{% endfor %}
+    </div>
+
+    {{ chart_card('Täglicher Heizbedarf', 'kWh/Tag', 'data-forecast', height='h-96') }}
+
+    {# Scroll inside an inner wrapper so the panel's corner decoration stays fixed #}
+    <div class="panel overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <div class="overflow-x-auto">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100 text-slate-600">
+          <tr>
+            <th class="p-2 text-left font-medium">Tagesmittel <span class="font-normal text-slate-400">°C</span></th>
+            <th class="p-2 text-right font-medium">Wärme <span class="font-normal text-slate-400">kWh/Tag</span></th>
+            <th class="p-2 text-right font-medium">Strom <span class="font-normal text-slate-400">kWh/Tag</span></th>
+            <th class="p-2 text-right font-medium">Arbeitszahl</th>
+            {% if table[0].cost is not none %}<th class="p-2 text-right font-medium">Stromkosten <span class="font-normal text-slate-400">€/Tag</span></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in table %}
+          <tr class="border-t border-slate-200 {{ 'text-slate-400' if r.extrapolated }}" {% if r.extrapolated %}title="Außerhalb der gemessenen Temperaturen, extrapoliert"{% endif %}>
+            <th scope="row" class="p-2 text-left font-medium tabular-nums">{{ ('%+d' % r.temp if r.temp else '0') | replace('-', '−') }}</th>
+            <td class="p-2 text-right tabular-nums">{{ r.heat | fmt }}</td>
+            <td class="p-2 text-right tabular-nums">{{ r.el | fmt('dec') }}</td>
+            <td class="p-2 text-right tabular-nums">{{ r.cop | fmt('ratio') }}</td>
+            {% if r.cost is not none %}<td class="p-2 text-right tabular-nums">{{ r.cost | fmt('money') }}</td>{% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </div>
+    <script type="application/json" id="forecast-data">{{ chart | tojson }}</script>
+    {% else %}
+    {% call card() %}
+      <p class="text-sm text-slate-500">
+        Zu wenig Daten für eine Prognose: {{ points | length }} Tage mit Temperatur und Wärmepumpendaten, mindestens {{ min_days }} Heiztage nötig.
+        {% if not has_location %}Für Außentemperaturen <code>LATITUDE</code> und <code>LONGITUDE</code> in <code>.env</code> setzen und <code>manage.py backfill --from YYYY-MM --source dwd</code> ausführen.{% endif %}
+      </p>
+    {% endcall %}
+    {% endif %}
+  </section>
+  {{ chart_scripts('forecast.js', 'range.js') }}
+  {% else %}
+  {% call card() %}<p class="text-sm text-slate-500">Noch keine Daten. Abruf über <code>/sync</code> oder <code>manage.py backfill</code>.</p>{% endcall %}
+  {% endif %}
+
+  <footer class="space-y-1 text-sm text-slate-500">
+    {{ sync_footer(sync_info) }}
+    <p>Nur Heizen, ohne Warmwasser und Kühlung. Außentemperatur: Tagesmittel aus DWD-Daten (via Bright Sky) am konfigurierten Standort.</p>
+    <p>Wärme = Steigung × (Heizgrenze − Tagesmittel), angepasst an alle Tage im Zeitraum. Strom = Wärme / Arbeitszahl, die Arbeitszahl linear über die Außentemperatur.</p>
+    <p>Gestrichelt bzw. grau: außerhalb der gemessenen Temperaturen, extrapoliert.</p>
+  </footer>
+</main>
+{% endblock %}

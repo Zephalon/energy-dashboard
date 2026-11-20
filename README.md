@@ -8,6 +8,7 @@ Kleine, passwortgeschützte Flask-App für das eigene Zuhause. Sie holt Tageswer
 
 - Monatsübersicht für einen frei wählbaren Zeitraum mit Kennzahlen (Hausverbrauch, Arbeitszahl, Autarkie, Eigenverbrauch …)
 - Diagramme (Chart.js) für den gewählten Zeitraum
+- Prognosen: täglicher Heizbedarf (Wärme und WP-Strom) für +20 … −20 °C Außentemperatur, abgeleitet aus Tagesdaten und DWD-Temperaturen
 - Synchronisation per HTTP-Endpoint oder CLI, mit Max-Alter pro Quelle und Datei-Lock
 - Ein Benutzer, PBKDF2-Passwort-Hash, CSRF-Schutz, Login-Sperre, strikte Security-Header
 - Läuft ohne venv auf Shared Hosting mit Phusion Passenger (z. B. Plesk)
@@ -27,9 +28,11 @@ app/
   db.py                SQLite: daily(day, source, metric, kwh), sync_state, login_failures
   sync.py              Sync mit Max-Alter pro Quelle + Datei-Lock
   metrics.py           Monatsaggregation, abgeleitete Kennzahlen, Spalten- und Chartdefinition
-  views.py             Übersicht (/) und Sync-Endpoint (/sync)
+  views.py             Übersicht (/), Prognosen (/prognosen) und Sync-Endpoint (/sync)
+  forecast.py          Heizkennlinie: Heizwärme und WP-Strom über der Außentemperatur
   sources/sax.py       SAX-Power-API
   sources/vaillant.py  myVAILLANT über myPyllant
+  sources/dwd.py       Tagesmitteltemperatur (DWD) über Bright Sky
   templates/           Jinja + Tailwind (CDN)
   static/charts.js     Diagramme (Chart.js, CDN)
 ```
@@ -64,8 +67,8 @@ python manage.py hash-password                                  # APP_PASSWORD_H
 ## CLI
 
 ```bash
-python manage.py sync [--source sax|vaillant] [--force]
-python manage.py backfill --from YYYY-MM [--to YYYY-MM] [--source sax|vaillant]
+python manage.py sync [--source sax|vaillant|dwd] [--force]
+python manage.py backfill --from YYYY-MM [--to YYYY-MM] [--source sax|vaillant|dwd]
 python manage.py hash-password
 ```
 
@@ -110,6 +113,18 @@ Nach Code-Änderungen startet Passenger die App neu, wenn `tmp/restart.txt` im A
 Die Statistik bezieht sich auf die Monate des gewählten Zeitraums. Ohne `ELECTRICITY_PRICE` bzw. `HOUSE_AREA_M2` entfällt die jeweilige Karte.
 
 PV ist der SAX-Wert × `PV_CORRECTION_FACTOR` (Default 1,2). Der Faktor greift nur in der Anzeige, in SQLite stehen die Rohwerte. Angezeigt werden Monate ab `DISPLAY_FROM` in `app/metrics.py`, den Zeitraum wählt man monatsgenau über Von/Bis (`/?from=2026-05&to=2026-11`). Standard sind die letzten 12 kompletten Monate mit Daten (`DEFAULT_MONTHS`), der laufende Monat lässt sich manuell dazuwählen.
+
+## Prognosen
+
+`/prognosen` setzt die tägliche Heizenergie (nur Modus Heizen, ohne Warmwasser und Kühlung) ins Verhältnis zur Tagesmitteltemperatur. Die Temperaturen kommen aus DWD-Daten über [Bright Sky](https://brightsky.dev) für `LATITUDE`/`LONGITUDE` und werden wie die anderen Quellen per Sync in SQLite gespeichert (Metrik `temp_mean`, Quelle `dwd`). Historie nachladen: `python manage.py backfill --from 2026-01 --source dwd`.
+
+| Größe | Modell |
+| --- | --- |
+| Wärme pro Tag | Steigung × max(0, Heizgrenze − Tagesmittel). Heizgrenze per Suche zwischen 8 und 22 °C, Steigung per kleinster Quadrate über alle Tage im Zeitraum |
+| Arbeitszahl | Lineare Regression über die Außentemperatur, Heiztage ab 2 kWh, gewichtet nach Wärme, begrenzt auf 1 … max. gemessener Wert |
+| Strom pro Tag | Wärme / Arbeitszahl |
+
+Werte außerhalb der gemessenen Temperaturen sind extrapoliert (im Diagramm gestrichelt). Für eine Prognose braucht es mindestens 10 Heiztage. Standard-Zeitraum ist ab `DISPLAY_FROM`, über Von/Bis lassen sich auch ältere Monate wählen.
 
 ## SAX-Felder
 

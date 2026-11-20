@@ -6,19 +6,17 @@ from zoneinfo import ZoneInfo
 
 from flask import Blueprint, abort, jsonify, render_template, request
 
-from . import metrics, sync
+from . import forecast, metrics, sync
 from .db import current_store
 from .settings import current_settings
 
 bp = Blueprint("views", __name__)
 
 
-@bp.get("/")
-def index():
-    settings, store = current_settings(), current_store()
+def _sync_info(settings, store) -> list[dict]:
     tz = ZoneInfo(settings.timezone)
     states = store.states()
-    sync_info = [
+    return [
         {
             "label": sync.LABELS[source],
             "success": metrics.format_local(states[source]["last_success"] if source in states else None, tz),
@@ -26,11 +24,17 @@ def index():
         }
         for source in settings.sources
     ]
+
+
+@bp.get("/")
+def index():
+    settings, store = current_settings(), current_store()
+    tz = ZoneInfo(settings.timezone)
     context = {
         "pv_factor": settings.pv_correction_factor,
         "groups": metrics.GROUPS,
         "kpis": [metrics.COLUMNS[k] for k in metrics.KPI_KEYS],
-        "sync_info": sync_info,
+        "sync_info": _sync_info(settings, store),
     }
     months = metrics.build_months(*store.monthly(), sync.LABELS, settings.pv_correction_factor)
     if not months:
@@ -54,6 +58,41 @@ def index():
         stats_basis=stats_basis,
         **context,
     )
+
+
+@bp.get("/prognosen")
+def forecast_page():
+    settings, store = current_settings(), current_store()
+    context = {"sync_info": _sync_info(settings, store), "has_location": "dwd" in settings.sources}
+    # All months are selectable here, earlier periods may contain the coldest days
+    months = metrics.build_months(*store.monthly(), sync.LABELS, display_from="")
+    if not months:
+        return render_template("prognosen.html", model=None, **context)
+
+    keys = [m.key for m in months]
+    default = (next((k for k in reversed(keys) if k >= metrics.DISPLAY_FROM), keys[-1]), keys[0])
+    start, end = metrics.resolve_range(keys, request.args.get("from"), request.args.get("to"), default)
+    today = sync.local_today(settings).isoformat()
+    points = forecast.points(store.daily(f"{start}-01", f"{end}-31"), today)
+    model = forecast.fit(points)
+    context.update(
+        months=months,
+        range_from=start,
+        range_to=end,
+        is_default=(start, end) == default,
+        points=points,
+        model=model,
+        min_days=forecast.MIN_HEATING_DAYS,
+        span=metrics.span_label(start, end),
+    )
+    if model:
+        rows = forecast.curve(model)
+        context.update(
+            stats=forecast.stats(model),
+            table=forecast.table(rows, settings.electricity_price),
+            chart=forecast.chart_data(points, rows),
+        )
+    return render_template("prognosen.html", **context)
 
 
 @bp.get("/sync")
