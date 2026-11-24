@@ -55,6 +55,22 @@ cp .env.example .env             # ausfüllen
 COOKIE_SECURE=false .venv/bin/flask --app passenger_wsgi:application run
 ```
 
+### Lokal testen mit echten Daten
+
+Schneller als ein Backfill: `data/energy.sqlite` vom Server nach `data/` kopieren. Für den Login reicht ein temporärer Hash als Umgebungsvariable. Er hat Vorrang vor der `.env`, die bleibt unverändert:
+
+```bash
+APP_PASSWORD_HASH="$(.venv/bin/python -c 'from werkzeug.security import generate_password_hash as g; print(g("local-test"))')" \
+COOKIE_SECURE=false .venv/bin/flask --app passenger_wsgi:application run --port 5055
+# Login unter http://127.0.0.1:5055 mit Passwort local-test
+```
+
+Browser-Checks (Diagramme, JS-Fehler, Screenshots) laufen mit Playwright, installiert nur in der `.venv`, nicht in `requirements.txt`:
+
+```bash
+.venv/bin/pip install playwright && .venv/bin/python -m playwright install chromium
+```
+
 ## Konfiguration
 
 Alle Einstellungen kommen aus `.env` (siehe [`.env.example`](.env.example)). Pflicht für die Web-App sind `SECRET_KEY` und `APP_PASSWORD_HASH`, für `/sync` zusätzlich `SYNC_TOKEN`.
@@ -113,6 +129,8 @@ Nach Code-Änderungen startet Passenger die App neu, wenn `tmp/restart.txt` im A
 Die Statistik bezieht sich auf die Monate des gewählten Zeitraums. Ohne `ELECTRICITY_PRICE` bzw. `HOUSE_AREA_M2` entfällt die jeweilige Karte.
 
 PV ist der SAX-Wert × `PV_CORRECTION_FACTOR` (Default 1,2). Der Faktor greift nur in der Anzeige, in SQLite stehen die Rohwerte. Angezeigt werden Monate ab `DISPLAY_FROM` in `app/metrics.py`, den Zeitraum wählt man monatsgenau über Von/Bis (`/?from=2026-05&to=2026-11`). Standard sind die letzten 12 kompletten Monate mit Daten (`DEFAULT_MONTHS`), der laufende Monat lässt sich manuell dazuwählen.
+
+Die Diagramme lassen sich zwischen Monats- und Tageswerten umschalten. Bei Zeiträumen bis `DAILY_MAX_MONTHS` (3) Monaten sind die Tage vorausgewählt. Die Tagesansicht lässt den laufenden, unvollständigen Tag weg. Tabelle und Kennzahlen bleiben monatsbasiert.
 
 ## Prognosen
 

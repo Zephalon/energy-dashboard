@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hmac
-from datetime import date, datetime
+from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
 from flask import Blueprint, abort, jsonify, render_template, request
@@ -29,7 +29,6 @@ def _sync_info(settings, store) -> list[dict]:
 @bp.get("/")
 def index():
     settings, store = current_settings(), current_store()
-    tz = ZoneInfo(settings.timezone)
     context = {
         "pv_factor": settings.pv_correction_factor,
         "groups": metrics.GROUPS,
@@ -41,9 +40,16 @@ def index():
         return render_template("months.html", selection=None, **context)
 
     keys = [m.key for m in months]
-    default = metrics.default_range(keys, current=datetime.now(tz).strftime("%Y-%m"))
+    today = sync.local_today(settings)
+    default = metrics.default_range(keys, current=today.isoformat()[:7])
     start, end = metrics.resolve_range(keys, request.args.get("from"), request.args.get("to"), default)
     selection = metrics.select(months, start, end, settings.pv_correction_factor)
+    # Daily chart view without the running (incomplete) day
+    first, last = metrics.month_days(start, end)
+    last = min(last, today - timedelta(days=1))
+    days = metrics.build_days(
+        store.daily(first.isoformat(), last.isoformat()), first, last, settings.pv_correction_factor
+    )
     stats, stats_basis = metrics.range_stats(selection, settings.house_area_m2, settings.electricity_price)
     return render_template(
         "months.html",
@@ -53,7 +59,7 @@ def index():
         range_to=end,
         is_default=(start, end) == default,
         default_months=metrics.DEFAULT_MONTHS,
-        chart=metrics.chart_data(selection),
+        chart=metrics.chart_data(selection, days),
         stats=stats,
         stats_basis=stats_basis,
         **context,
@@ -73,7 +79,7 @@ def forecast_page():
     today = sync.local_today(settings).isoformat()
     default = metrics.default_range(keys, current=today[:7])
     start, end = metrics.resolve_range(keys, request.args.get("from"), request.args.get("to"), default)
-    points = forecast.points(store.daily(f"{start}-01", f"{end}-31"), today)
+    points = forecast.points(store.daily(*(d.isoformat() for d in metrics.month_days(start, end))), today)
     model = forecast.fit(points)
     context.update(
         months=months,

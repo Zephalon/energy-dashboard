@@ -42,16 +42,27 @@
 </label>
 {% endmacro %}
 
-{# Button, or link styled as one when href is set. current marks the link as the active state. #}
-{% macro button(label, href=None, primary=False, current=False, extra='') %}
+{# Button, or link styled as one when href is set. current marks the link as the active state,
+   aria-pressed="true" (via attrs) a pressed toggle button. attrs: extra HTML attributes. #}
+{% macro button(label, href=None, primary=False, current=False, extra='', attrs={}) %}
 {% set cls = 'btn rounded-md border px-3 py-2 text-center text-sm font-medium ' ~ extra ~ ' ' ~ (
   'btn-primary border-transparent bg-slate-800 text-white hover:bg-slate-700' if primary else
-  'border-slate-300 text-slate-600 hover:bg-slate-100 aria-[current=true]:bg-slate-100 aria-[current=true]:text-slate-800') %}
+  'border-slate-300 text-slate-600 hover:bg-slate-100 aria-[current=true]:bg-slate-100 aria-[current=true]:text-slate-800 '
+  ~ 'aria-pressed:bg-slate-100 aria-pressed:text-slate-800') %}
 {% if href %}
-<a href="{{ href }}" class="{{ cls }}" {% if current %}aria-current="true"{% endif %}>{{ label }}</a>
+<a href="{{ href }}" class="{{ cls }}" {% if current %}aria-current="true"{% endif %}{{ attrs | xmlattr }}>{{ label }}</a>
 {% else %}
-<button class="{{ cls }}">{{ label }}</button>
+<button class="{{ cls }}"{{ attrs | xmlattr }}>{{ label }}</button>
 {% endif %}
+{% endmacro %}
+
+{# Group of toggle buttons; options: (value, label) pairs. The page script reacts to clicks on [attr]. #}
+{% macro toggle_group(label, attr, options, selected) %}
+<div class="flex gap-2" role="group" aria-label="{{ label }}">
+  {% for value, text in options %}
+  {{ button(text, attrs={'type': 'button', attr: value, 'aria-pressed': 'true' if value == selected else 'false'}) }}
+  {% endfor %}
+</div>
 {% endmacro %}
 
 {# months: list of metrics.Period, values are YYYY-MM keys #}

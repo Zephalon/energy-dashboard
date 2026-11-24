@@ -3,16 +3,21 @@
   if (!source || !window.Chart || !window.chartTheme) return;
 
   const { token, alpha, format, glow, tooltip, mount } = window.chartTheme;
-  const { labels, charts } = JSON.parse(source.textContent);
+  const { views, default: initial } = JSON.parse(source.textContent);
   const FORMATS = {
     kwh: { scale: 1, digits: 0 },
     pct: { scale: 100, digits: 0 },
     ratio: { scale: 1, digits: 1 },
   };
+  const DENSE = 40; // hide points above this many labels, they would overlap
   const canvases = document.querySelectorAll("canvas[data-chart]");
+  const toggles = document.querySelectorAll("[data-resolution]");
+  let view = initial; // "month" | "day"
 
-  mount(() => {
+  const render = mount(() => {
     const fill = Number(token("--chart-fill-opacity"));
+    const { labels, charts } = views[view];
+    const pointRadius = labels.length > DENSE ? 0 : 4;
 
     return [...canvases].map((canvas) => {
       const chart = charts[Number(canvas.dataset.chart)];
@@ -35,7 +40,8 @@
               borderColor: color,
               borderWidth: chart.stacked ? Number(fill < 1) : 3, // outline translucent bars only
               tension: 0.3,
-              pointRadius: 4,
+              pointRadius,
+              pointHoverRadius: 4,
               spanGaps: false,
             };
           }),
@@ -56,7 +62,7 @@
             },
           },
           scales: {
-            x: { grid: { display: false }, stacked: chart.stacked },
+            x: { grid: { display: false }, stacked: chart.stacked, ticks: { maxRotation: 0, autoSkipPadding: 16 } },
             y: {
               stacked: chart.stacked,
               beginAtZero: true,
@@ -68,4 +74,13 @@
       });
     });
   });
+
+  // Resolution toggle: switch the view and redraw all charts
+  toggles.forEach((button) =>
+    button.addEventListener("click", () => {
+      view = button.dataset.resolution;
+      toggles.forEach((t) => t.setAttribute("aria-pressed", String(t === button)));
+      render();
+    })
+  );
 })();

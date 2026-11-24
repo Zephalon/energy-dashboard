@@ -28,7 +28,8 @@ window.chartTheme = (() => {
     borderWidth: 1,
   });
 
-  // Calls build() (returns chart instances) once the theme's web font is loaded and again on every theme change
+  // Calls build() (returns chart instances) once the theme's web font is loaded and again on every theme change.
+  // Returns render() so page scripts can redraw on their own state changes.
   const mount = (build) => {
     let instances = [];
     const render = () => {
@@ -44,6 +45,7 @@ window.chartTheme = (() => {
 
     renderWhenFontReady();
     document.addEventListener("themechange", renderWhenFontReady);
+    return render;
   };
 
   return { token, alpha, format, glow, tooltip, mount };

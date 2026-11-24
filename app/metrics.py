@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import calendar
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, tzinfo
+from datetime import date, datetime, timedelta, tzinfo
 
 MONTH_KEY = re.compile(r"\d{4}-(0[1-9]|1[0-2])")  # YYYY-MM
 DEFAULT_MONTHS = 12  # default range: the latest n complete months with data
+DAILY_MAX_MONTHS = 3  # ranges up to n months preselect the daily chart view
 SAX_KEYS = ("pv", "grid_import", "grid_export", "bat_charge", "bat_discharge")
 HEAT_MODES = ("heating", "dhw")  # modes that produce heat; cooling is excluded from heat and COP
 DISPLAY_FROM = "2026-05"  # YYYY-MM, earlier months are hidden
@@ -253,10 +255,29 @@ def select(months: list[Period], start: str, end: str, pv_factor: float = 1.0) -
     return Selection(derive(raw, pv_factor), picked, days)
 
 
-def chart_data(selection: Selection) -> dict:
-    months = selection.months[::-1]
+def month_days(start: str, end: str) -> tuple[date, date]:
+    """YYYY-MM keys -> first day of start, last day of end"""
+    first = date.fromisoformat(f"{start}-01")
+    y, m = map(int, end.split("-"))
+    return first, date(y, m, calendar.monthrange(y, m)[1])
+
+
+def build_days(
+    daily: dict[str, dict[str, float]], first: date, last: date, pv_factor: float = 1.0
+) -> list[tuple[str, dict[str, float | None]]]:
+    """Every calendar day in [first, last], oldest first; days without data stay empty (gaps in charts)."""
+    days = []
+    day = first
+    while day <= last:
+        raw = daily.get(day.isoformat())
+        days.append((day.isoformat(), derive(with_heat_fallback(raw), pv_factor) if raw else {}))
+        day += timedelta(days=1)
+    return days
+
+
+def _chart_view(labels: list[str], rows: list[dict[str, float | None]]) -> dict:
     return {
-        "labels": [m.label for m in months],
+        "labels": labels,
         "charts": [
             {
                 "title": c.title,
@@ -264,13 +285,23 @@ def chart_data(selection: Selection) -> dict:
                 "unit": COLUMNS[c.keys[0]].unit,
                 "stacked": c.stacked,
                 "series": [
-                    {"key": k, "label": COLUMNS[k].title, "values": [m.values.get(k) for m in months]}
+                    {"key": k, "label": COLUMNS[k].title, "values": [r.get(k) for r in rows]}
                     for k in c.keys
                 ],
             }
             for c in CHARTS
         ],
     }
+
+
+def chart_data(selection: Selection, days: list[tuple[str, dict[str, float | None]]]) -> dict:
+    """Monthly and (if any) daily chart views; short ranges preselect the daily view."""
+    months = selection.months[::-1]
+    views = {"month": _chart_view([m.label for m in months], [m.values for m in months])}
+    if days:
+        views["day"] = _chart_view([day_label(k) for k, _ in days], [v for _, v in days])
+    daily = "day" in views and len(selection.months) <= DAILY_MAX_MONTHS
+    return {"views": views, "default": "day" if daily else "month"}
 
 
 def _scale(value: float | None, factor: float) -> float | None:
