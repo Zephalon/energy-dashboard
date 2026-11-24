@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from .metrics import Stat, StatCard, day_label, with_heat_fallback
 
 TEMP_METRIC = "temp_mean"
-TEMPS = range(20, -21, -1)  # °C, warm to cold
-TABLE_STEP = 5  # K between table rows
+TEMPS = range(20, -16, -1)  # °C, warm to cold; also the chart's x range
+TABLE_TEMPS = range(15, -16, -3)  # °C, table rows
 MIN_HEATING_DAYS = 10
 MIN_HEAT_KWH = 2.0  # days with less heat are too noisy for the COP fit
 BALANCE_CANDIDATES = [t / 10 for t in range(80, 221)]  # 8.0 … 22.0 °C
@@ -135,7 +135,7 @@ def table(rows: list[dict], price: float | None) -> list[dict]:
     return [
         {**r, "cost": r["el"] * price if price else None}
         for r in rows
-        if r["temp"] % TABLE_STEP == 0
+        if r["temp"] in TABLE_TEMPS
     ]
 
 
@@ -160,14 +160,14 @@ def stats(model: Model) -> list[StatCard]:
 
 
 def chart_data(pts: list[Point], rows: list[dict]) -> dict:
-    x_max = TEMPS[0]  # warmer days need no heating and would only stretch the axis
+    x_max, x_min = TEMPS[0], TEMPS[-1]  # warmer days need no heating and would only stretch the axis
 
     def series(key: str, label: str, attr: str) -> dict:
         return {
             "key": key,
             "label": label,
-            "points": [{"x": p.temp, "y": getattr(p, attr), "day": day_label(p.day)} for p in pts if p.temp <= x_max],
+            "points": [{"x": p.temp, "y": getattr(p, attr), "day": day_label(p.day)} for p in pts if x_min <= p.temp <= x_max],
             "curve": [{"x": r["temp"], "y": r[attr], "ext": r["extrapolated"]} for r in rows],
         }
 
-    return {"unit": "kWh", "xMax": x_max, "series": [series("heat_heating", "Wärme", "heat"), series("el_heating", "Strom", "el")]}
+    return {"unit": "kWh", "xMin": x_min, "xMax": x_max, "series": [series("heat_heating", "Wärme", "heat"), series("el_heating", "Strom", "el")]}

@@ -5,7 +5,7 @@
   if (!source || !canvas || !window.Chart || !window.chartTheme) return;
 
   const { token, alpha, format, glow, tooltip, mount } = window.chartTheme;
-  const { unit, xMax, series } = JSON.parse(source.textContent);
+  const { unit, xMin, xMax, series } = JSON.parse(source.textContent);
   const DASH = [6, 4];
   const POINT_OPACITY = 0.45;
   const temp = (v) => `${format(v, 1).replace("-", "−")} °C`;
@@ -46,7 +46,7 @@
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          interaction: { mode: "nearest", intersect: false },
+          interaction: { mode: "nearest", axis: "xy", intersect: false }, // the point under the cursor, not just the closest temperature
           plugins: {
             legend: { position: "top", align: "end" },
             tooltip: {
@@ -64,7 +64,7 @@
             x: {
               type: "linear",
               reverse: true, // warm left, cold right
-              suggestedMin: -20,
+              min: xMin,
               max: xMax,
               ticks: { stepSize: 5, callback: (v) => format(v).replace("-", "−") },
               title: { display: true, text: "Tagesmitteltemperatur °C" },

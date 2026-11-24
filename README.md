@@ -124,7 +124,7 @@ PV ist der SAX-Wert × `PV_CORRECTION_FACTOR` (Default 1,2). Der Faktor greift n
 | Arbeitszahl | Lineare Regression über die Außentemperatur, Heiztage ab 2 kWh, gewichtet nach Wärme, begrenzt auf 1 … max. gemessener Wert |
 | Strom pro Tag | Wärme / Arbeitszahl |
 
-Werte außerhalb der gemessenen Temperaturen sind extrapoliert (im Diagramm gestrichelt). Für eine Prognose braucht es mindestens 10 Heiztage. Standard-Zeitraum ist ab `DISPLAY_FROM`, über Von/Bis lassen sich auch ältere Monate wählen.
+Werte außerhalb der gemessenen Temperaturen sind extrapoliert (im Diagramm gestrichelt). Für eine Prognose braucht es mindestens 10 Heiztage. Standard sind wie in der Übersicht die letzten 12 kompletten Monate (sofern vorhanden), über Von/Bis lassen sich auch ältere Monate und der laufende Monat wählen. Das Diagramm zeigt +20 bis −15 °C, die Tabelle +15 bis −15 °C in 3-K-Schritten.
 
 ## SAX-Felder
 

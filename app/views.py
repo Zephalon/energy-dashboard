@@ -70,9 +70,9 @@ def forecast_page():
         return render_template("prognosen.html", model=None, **context)
 
     keys = [m.key for m in months]
-    default = (next((k for k in reversed(keys) if k >= metrics.DISPLAY_FROM), keys[-1]), keys[0])
-    start, end = metrics.resolve_range(keys, request.args.get("from"), request.args.get("to"), default)
     today = sync.local_today(settings).isoformat()
+    default = metrics.default_range(keys, current=today[:7])
+    start, end = metrics.resolve_range(keys, request.args.get("from"), request.args.get("to"), default)
     points = forecast.points(store.daily(f"{start}-01", f"{end}-31"), today)
     model = forecast.fit(points)
     context.update(
